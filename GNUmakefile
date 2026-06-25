@@ -8,17 +8,19 @@ install: build
 
 lint:
 	golangci-lint run
+	terraform fmt -check -recursive examples/
 
 generate:
-	cd tools; go generate ./...
+	go tool tfplugindocs generate -provider-name truenas
 
 fmt:
 	gofmt -s -w -e .
+	terraform fmt -recursive examples/
 
-test:
-	go test -v -cover -timeout=120s -parallel=10 ./...
+unit-tests:
+	go test -v -coverprofile=coverage.out -covermode=atomic -timeout=120s -parallel=10 ./...
 
-testacc:
-	TF_ACC=1 go test -v -cover -timeout 120m ./...
+acc-tests:
+	TF_ACC=1 go test -v -coverprofile=coverage.out -covermode=atomic -timeout 120m ./...
 
-.PHONY: fmt lint test testacc build install generate
+.PHONY: fmt lint build install generate unit-tests acc-tests
