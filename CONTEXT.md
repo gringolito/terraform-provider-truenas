@@ -66,6 +66,14 @@ The dedicated, additive resource (`truenas_user_group_membership`) that owns sup
 compose as a union. `truenas_user.groups` and `truenas_group.users` are read-only
 reflections of the resulting state, never authoritative inputs.
 
+**Credential set**:
+One of the two valid ways to authenticate with TrueNAS: either an `api_key` alone, or a
+`username` + `password` pair together. Provider configuration requires exactly one credential
+set — supplying neither, both, or a partial pair (username without password or vice versa) is
+a configuration error. Env-var fallbacks (`TRUENAS_API_KEY`, `TRUENAS_USERNAME`,
+`TRUENAS_PASSWORD`) are merged before this validation runs.
+_Avoid_: credentials (when you mean the full validation constraint), auth method
+
 **Permission / ACL**:
 The ownership, POSIX mode, and access-control entries that govern access to a dataset's
 files. These live entirely in the TrueNAS `filesystem.*` namespace
