@@ -3,6 +3,7 @@ module github.com/gringolito/terraform-provider-truenas
 go 1.25.8
 
 require (
+	github.com/gorilla/websocket v1.5.3
 	github.com/hashicorp/terraform-plugin-framework v1.19.0
 	github.com/truenas/api_client_golang v0.0.0-20250820184128-fc6edc0b6ebe
 )
@@ -22,7 +23,6 @@ require (
 	github.com/fatih/color v1.19.0 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/uuid v1.6.0 // indirect
-	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/hashicorp/cli v1.1.7 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-checkpoint v0.5.0 // indirect

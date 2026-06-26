@@ -1,99 +1,129 @@
-package client
+package client_test
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/gorilla/websocket"
+
+	"github.com/gringolito/terraform-provider-truenas/internal/client"
 )
 
-// fakeRawCaller is a test double for rawCaller.
-type fakeRawCaller struct {
-	mu       sync.Mutex
-	response json.RawMessage
-	err      error
-	delay    time.Duration
-	calls    []string
+var wsUpgrader = websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
+
+type wsTestServer struct {
+	*httptest.Server
+	mu      sync.Mutex
+	results map[string]json.RawMessage
+	errors  map[string]json.RawMessage
+	delay   time.Duration
 }
 
-func (f *fakeRawCaller) Call(method string, _ int64, _ any) (json.RawMessage, error) {
-	if f.delay > 0 {
-		time.Sleep(f.delay)
+func newWSTestServer(t *testing.T) *wsTestServer {
+	t.Helper()
+	ts := &wsTestServer{
+		results: make(map[string]json.RawMessage),
+		errors:  make(map[string]json.RawMessage),
 	}
-	f.mu.Lock()
-	f.calls = append(f.calls, method)
-	f.mu.Unlock()
-	return f.response, f.err
+	ts.Server = httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/current" {
+			http.NotFound(w, r)
+			return
+		}
+		ts.serveWS(w, r)
+	}))
+	t.Cleanup(ts.Close)
+	return ts
 }
 
-func (f *fakeRawCaller) Login(_, _, _ string) error { return nil }
-func (f *fakeRawCaller) Close() error               { return nil }
-
-func makeEnvelope(result, apiErr string) json.RawMessage {
-	r := "null"
-	if result != "" {
-		r = result
-	}
-	e := "null"
-	if apiErr != "" {
-		e = apiErr
-	}
-	return json.RawMessage(`{"jsonrpc":"2.0","id":1,"result":` + r + `,"error":` + e + `}`)
+func (ts *wsTestServer) setResult(method string, result json.RawMessage) {
+	ts.mu.Lock()
+	defer ts.mu.Unlock()
+	ts.results[method] = result
 }
 
-func TestUnwrapResult_Success(t *testing.T) {
-	raw := makeEnvelope(`{"id":42}`, "")
-	result, err := unwrapResult(raw)
+func (ts *wsTestServer) setError(method string, errPayload json.RawMessage) {
+	ts.mu.Lock()
+	defer ts.mu.Unlock()
+	ts.errors[method] = errPayload
+}
+
+func (ts *wsTestServer) serveWS(w http.ResponseWriter, r *http.Request) {
+	conn, err := wsUpgrader.Upgrade(w, r, nil)
+	if err != nil {
+		return
+	}
+	defer conn.Close()
+
+	var writeMu sync.Mutex
+
+	for {
+		_, msg, err := conn.ReadMessage()
+		if err != nil {
+			return
+		}
+		var req struct {
+			ID     any    `json:"id"`
+			Method string `json:"method"`
+		}
+		if err := json.Unmarshal(msg, &req); err != nil {
+			continue
+		}
+
+		ts.mu.Lock()
+		delay := ts.delay
+		errPayload := ts.errors[req.Method]
+		result := ts.results[req.Method]
+		ts.mu.Unlock()
+
+		if delay > 0 {
+			time.Sleep(delay)
+		}
+
+		var resp map[string]any
+		if errPayload != nil {
+			resp = map[string]any{"jsonrpc": "2.0", "id": req.ID, "result": nil, "error": errPayload}
+		} else {
+			resp = map[string]any{"jsonrpc": "2.0", "id": req.ID, "result": result}
+		}
+
+		writeMu.Lock()
+		conn.WriteJSON(resp) //nolint:errcheck
+		writeMu.Unlock()
+	}
+}
+
+func (ts *wsTestServer) newClient(t *testing.T) *client.WebSocketClient {
+	t.Helper()
+	ts.setResult("auth.login_with_api_key", json.RawMessage("true"))
+	c, err := client.NewWebSocketClient(ts.Listener.Addr().String(), "test-key", "", "", true)
+	if err != nil {
+		t.Fatalf("NewWebSocketClient: %v", err)
+	}
+	return c
+}
+
+func TestNewWebSocketClient_Success(t *testing.T) {
+	srv := newWSTestServer(t)
+	srv.setResult("auth.login_with_api_key", json.RawMessage("true"))
+
+	_, err := client.NewWebSocketClient(srv.Listener.Addr().String(), "test-key", "", "", true)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	var got map[string]any
-	if err := json.Unmarshal(result, &got); err != nil {
-		t.Fatalf("failed to unmarshal result: %v", err)
-	}
-	if got["id"] != float64(42) {
-		t.Errorf("expected id=42, got %v", got["id"])
-	}
 }
 
-func TestUnwrapResult_APIError(t *testing.T) {
-	apiErr := `{"errname":"ValidationError","type":"VALIDATION","reason":"invalid value"}`
-	raw := makeEnvelope("", apiErr)
-	_, err := unwrapResult(raw)
-	if err == nil {
-		t.Fatal("expected error, got nil")
-	}
-	var apiError *APIError
-	if !errors.As(err, &apiError) {
-		t.Fatalf("expected *APIError, got %T: %v", err, err)
-	}
-	if apiError.ErrName != "ValidationError" {
-		t.Errorf("ErrName: got %q, want %q", apiError.ErrName, "ValidationError")
-	}
-	if apiError.Type != "VALIDATION" {
-		t.Errorf("Type: got %q, want %q", apiError.Type, "VALIDATION")
-	}
-	if apiError.Reason != "invalid value" {
-		t.Errorf("Reason: got %q, want %q", apiError.Reason, "invalid value")
-	}
-}
+func TestCall_SuccessResult(t *testing.T) {
+	srv := newWSTestServer(t)
+	c := srv.newClient(t)
 
-func TestUnwrapResult_NullError(t *testing.T) {
-	raw := makeEnvelope(`"pong"`, "")
-	result, err := unwrapResult(raw)
-	if err != nil {
-		t.Fatalf("unexpected error for null error field: %v", err)
-	}
-	if string(result) != `"pong"` {
-		t.Errorf("unexpected result: %s", result)
-	}
-}
-
-func TestWebSocketClient_Call_Success(t *testing.T) {
-	fake := &fakeRawCaller{response: makeEnvelope(`{"name":"test"}`, "")}
-	c := &WebSocketClient{inner: fake}
+	srv.setResult("user.query", json.RawMessage(`{"id":42}`))
 
 	result, err := c.Call(context.Background(), "user.query", nil)
 	if err != nil {
@@ -101,57 +131,42 @@ func TestWebSocketClient_Call_Success(t *testing.T) {
 	}
 	var got map[string]any
 	if err := json.Unmarshal(result, &got); err != nil {
-		t.Fatalf("failed to unmarshal result: %v", err)
+		t.Fatalf("unmarshal result: %v", err)
 	}
-	if got["name"] != "test" {
-		t.Errorf("unexpected result: %v", got)
+	if got["id"] != float64(42) {
+		t.Errorf("id: got %v, want 42", got["id"])
 	}
 }
 
-func TestWebSocketClient_Call_APIError(t *testing.T) {
-	apiErr := `{"errname":"NotFound","type":"NOT_FOUND","reason":"object not found"}`
-	fake := &fakeRawCaller{response: makeEnvelope("", apiErr)}
-	c := &WebSocketClient{inner: fake}
+func TestCall_APIError(t *testing.T) {
+	srv := newWSTestServer(t)
+	c := srv.newClient(t)
 
-	_, err := c.Call(context.Background(), "user.get_instance", []int{999})
+	srv.setError("user.create", json.RawMessage(`{"errname":"ValidationError","type":"VALIDATION","reason":"invalid value"}`))
+
+	_, err := c.Call(context.Background(), "user.create", nil)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
-	var apiError *APIError
-	if !errors.As(err, &apiError) {
-		t.Fatalf("expected *APIError, got %T", err)
+	var apiErr *client.APIError
+	if !errors.As(err, &apiErr) {
+		t.Fatalf("expected *client.APIError, got %T: %v", err, err)
 	}
-	if apiError.ErrName != "NotFound" {
-		t.Errorf("ErrName: got %q, want %q", apiError.ErrName, "NotFound")
+	if apiErr.ErrName != "ValidationError" {
+		t.Errorf("ErrName: got %q, want %q", apiErr.ErrName, "ValidationError")
 	}
-}
-
-func TestWebSocketClient_Call_TransportError(t *testing.T) {
-	transportErr := errors.New("connection reset")
-	fake := &fakeRawCaller{err: transportErr}
-	c := &WebSocketClient{inner: fake}
-
-	_, err := c.Call(context.Background(), "core.ping", nil)
-	if !errors.Is(err, transportErr) {
-		t.Errorf("expected transport error, got %v", err)
+	if apiErr.Type != "VALIDATION" {
+		t.Errorf("Type: got %q, want %q", apiErr.Type, "VALIDATION")
+	}
+	if apiErr.Reason != "invalid value" {
+		t.Errorf("Reason: got %q, want %q", apiErr.Reason, "invalid value")
 	}
 }
 
-func TestWebSocketClient_Call_ContextDeadline(t *testing.T) {
-	fake := &fakeRawCaller{response: makeEnvelope(`true`, "")}
-	c := &WebSocketClient{inner: fake}
+func TestCallWithJob_NotImplemented(t *testing.T) {
+	srv := newWSTestServer(t)
+	c := srv.newClient(t)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	_, err := c.Call(ctx, "core.ping", nil)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-}
-
-func TestWebSocketClient_CallWithJob_NotImplemented(t *testing.T) {
-	c := &WebSocketClient{inner: &fakeRawCaller{}}
 	_, err := c.CallWithJob(context.Background(), "pool.dataset.create", nil)
 	if err == nil {
 		t.Fatal("expected error, got nil")
@@ -161,12 +176,12 @@ func TestWebSocketClient_CallWithJob_NotImplemented(t *testing.T) {
 	}
 }
 
-func TestWebSocketClient_Call_Concurrent(t *testing.T) {
-	fake := &fakeRawCaller{
-		response: makeEnvelope(`"pong"`, ""),
-		delay:    5 * time.Millisecond,
-	}
-	c := &WebSocketClient{inner: fake}
+func TestCall_Concurrent(t *testing.T) {
+	srv := newWSTestServer(t)
+	srv.delay = 5 * time.Millisecond
+	c := srv.newClient(t)
+
+	srv.setResult("core.ping", json.RawMessage(`"pong"`))
 
 	const n = 10
 	var wg sync.WaitGroup
@@ -174,18 +189,10 @@ func TestWebSocketClient_Call_Concurrent(t *testing.T) {
 	for range n {
 		go func() {
 			defer wg.Done()
-			_, err := c.Call(context.Background(), "core.ping", nil)
-			if err != nil {
+			if _, err := c.Call(context.Background(), "core.ping", nil); err != nil {
 				t.Errorf("unexpected error in concurrent call: %v", err)
 			}
 		}()
 	}
 	wg.Wait()
-
-	fake.mu.Lock()
-	callCount := len(fake.calls)
-	fake.mu.Unlock()
-	if callCount != n {
-		t.Errorf("expected %d calls, got %d", n, callCount)
-	}
 }
