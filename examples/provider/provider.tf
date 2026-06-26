@@ -1,3 +1,3 @@
-provider "scaffolding" {
-  # example configuration here
+provider "truenas" {
+  # configuration options
 }
