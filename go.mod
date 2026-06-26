@@ -2,7 +2,11 @@ module github.com/gringolito/terraform-provider-truenas
 
 go 1.25.8
 
-require github.com/hashicorp/terraform-plugin-framework v1.19.0
+require (
+	github.com/gorilla/websocket v1.5.3
+	github.com/hashicorp/terraform-plugin-framework v1.19.0
+	github.com/truenas/api_client_golang v0.0.0-20250820184128-fc6edc0b6ebe
+)
 
 require (
 	github.com/BurntSushi/toml v1.2.1 // indirect
