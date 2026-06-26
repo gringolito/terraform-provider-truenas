@@ -2,7 +2,10 @@ module github.com/gringolito/terraform-provider-truenas
 
 go 1.25.8
 
-require github.com/hashicorp/terraform-plugin-framework v1.19.0
+require (
+	github.com/hashicorp/terraform-plugin-framework v1.19.0
+	github.com/truenas/api_client_golang v0.0.0-20250820184128-fc6edc0b6ebe
+)
 
 require (
 	github.com/BurntSushi/toml v1.2.1 // indirect
@@ -52,7 +55,6 @@ require (
 	github.com/posener/complete v1.2.3 // indirect
 	github.com/shopspring/decimal v1.3.1 // indirect
 	github.com/spf13/cast v1.5.0 // indirect
-	github.com/truenas/api_client_golang v0.0.0-20250820184128-fc6edc0b6ebe // indirect
 	github.com/vmihailenco/msgpack/v5 v5.4.1 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
 	github.com/yuin/goldmark v1.7.7 // indirect

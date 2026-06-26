@@ -12,7 +12,7 @@ import (
 )
 
 type rawCaller interface {
-	Call(method string, timeoutSeconds int64, params interface{}) (json.RawMessage, error)
+	Call(method string, timeoutSeconds int64, params any) (json.RawMessage, error)
 	Login(username, password, apiKey string) error
 	Close() error
 }

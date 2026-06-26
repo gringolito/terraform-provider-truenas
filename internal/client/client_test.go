@@ -18,7 +18,7 @@ type fakeRawCaller struct {
 	calls    []string
 }
 
-func (f *fakeRawCaller) Call(method string, _ int64, _ interface{}) (json.RawMessage, error) {
+func (f *fakeRawCaller) Call(method string, _ int64, _ any) (json.RawMessage, error) {
 	if f.delay > 0 {
 		time.Sleep(f.delay)
 	}
@@ -49,7 +49,7 @@ func TestUnwrapResult_Success(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	var got map[string]interface{}
+	var got map[string]any
 	if err := json.Unmarshal(result, &got); err != nil {
 		t.Fatalf("failed to unmarshal result: %v", err)
 	}
@@ -99,7 +99,7 @@ func TestWebSocketClient_Call_Success(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	var got map[string]interface{}
+	var got map[string]any
 	if err := json.Unmarshal(result, &got); err != nil {
 		t.Fatalf("failed to unmarshal result: %v", err)
 	}
