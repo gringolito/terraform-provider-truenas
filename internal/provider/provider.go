@@ -64,7 +64,7 @@ func (p *TrueNASProvider) Schema(ctx context.Context, req provider.SchemaRequest
 			},
 			"insecure_skip_verify": schema.BoolAttribute{
 				Optional:            true,
-				MarkdownDescription: "Skip TLS certificate verification. Should only be used for testing. Can also be set with the `TRUENAS_INSECURE_SKIP_VERIFY` environment variable.",
+				MarkdownDescription: "Skip TLS certificate verification. Can also be set with the `TRUENAS_INSECURE_SKIP_VERIFY` environment variable.",
 			},
 		},
 	}

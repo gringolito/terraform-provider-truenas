@@ -36,6 +36,6 @@ provider "truenas" {}
 
 - `api_key` (String, Sensitive) API key for authentication. Cannot be used together with `username` and `password`. Can also be set with the `TRUENAS_API_KEY` environment variable.
 - `host` (String) TrueNAS hostname or IP address. Can also be set with the `TRUENAS_HOST` environment variable.
-- `insecure_skip_verify` (Boolean) Skip TLS certificate verification. Should only be used for testing. Can also be set with the `TRUENAS_INSECURE_SKIP_VERIFY` environment variable.
+- `insecure_skip_verify` (Boolean) Skip TLS certificate verification. Can also be set with the `TRUENAS_INSECURE_SKIP_VERIFY` environment variable.
 - `password` (String, Sensitive) Password for authentication. Must be used together with `username`. Cannot be used together with `api_key`. Can also be set with the `TRUENAS_PASSWORD` environment variable.
 - `username` (String) Username for authentication. Must be used together with `password`. Cannot be used together with `api_key`. Can also be set with the `TRUENAS_USERNAME` environment variable.
