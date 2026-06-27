@@ -146,6 +146,7 @@ func capitalize(s string) string {
 
 func snakeToPascal(s string) string {
 	s = strings.ReplaceAll(s, ".", "_")
+	s = strings.ReplaceAll(s, "-", "_") // kebab-case property names (e.g. AES-128-CCM)
 	parts := strings.Split(s, "_")
 	var b strings.Builder
 	for _, p := range parts {
