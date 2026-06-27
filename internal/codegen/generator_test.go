@@ -37,6 +37,10 @@ func TestGenerateNamespace(t *testing.T) {
 		//  4. anyOf: [T, null] nullable field
 		//  5. method with _required_ and _attrs_order_ annotations
 		{"user", filepath.Join("testdata", "golden", "user_gen.go")},
+		// group also tests:
+		//  6. non-standard verb returns separate result struct (get_group_obj → GroupGetGroupObjResult)
+		//  7. update args bool→*bool and slice→no omitempty
+		{"group", filepath.Join("testdata", "golden", "group_gen.go")},
 	}
 
 	for _, tt := range tests {

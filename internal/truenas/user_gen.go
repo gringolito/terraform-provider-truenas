@@ -43,6 +43,56 @@ type User struct {
 	Password                *string                    `json:"password"`
 }
 
+type UserGetUserObjResult struct {
+	PwName    string   `json:"pw_name"`
+	PwGecos   string   `json:"pw_gecos"`
+	PwDir     string   `json:"pw_dir"`
+	PwShell   string   `json:"pw_shell"`
+	PwUid     int64    `json:"pw_uid"`
+	PwGid     int64    `json:"pw_gid"`
+	Grouplist *[]int64 `json:"grouplist"`
+	Sid       *string  `json:"sid"`
+	Source    string   `json:"source"`
+	Local     bool     `json:"local"`
+}
+
+type UserRenew2faSecretResult struct {
+	Id                      int64                      `json:"id"`
+	Uid                     int64                      `json:"uid"`
+	Username                json.RawMessage            `json:"username"`
+	Unixhash                *string                    `json:"unixhash"`
+	Smbhash                 *string                    `json:"smbhash"`
+	Home                    string                     `json:"home,omitempty"`
+	Shell                   string                     `json:"shell,omitempty"`
+	FullName                string                     `json:"full_name"`
+	Builtin                 bool                       `json:"builtin"`
+	Smb                     bool                       `json:"smb,omitempty"`
+	UsernsIdmap             json.RawMessage            `json:"userns_idmap,omitempty"`
+	Group                   map[string]json.RawMessage `json:"group"`
+	Groups                  []int64                    `json:"groups,omitempty"`
+	PasswordDisabled        bool                       `json:"password_disabled,omitempty"`
+	SshPasswordEnabled      bool                       `json:"ssh_password_enabled,omitempty"`
+	Sshpubkey               *string                    `json:"sshpubkey,omitempty"`
+	Locked                  bool                       `json:"locked,omitempty"`
+	SudoCommands            []string                   `json:"sudo_commands,omitempty"`
+	SudoCommandsNopasswd    []string                   `json:"sudo_commands_nopasswd,omitempty"`
+	Email                   *string                    `json:"email,omitempty"`
+	Local                   bool                       `json:"local"`
+	Immutable               bool                       `json:"immutable"`
+	TwofactorAuthConfigured bool                       `json:"twofactor_auth_configured"`
+	Sid                     *string                    `json:"sid"`
+	LastPasswordChange      *string                    `json:"last_password_change"`
+	PasswordAge             *int64                     `json:"password_age"`
+	PasswordHistory         *[]json.RawMessage         `json:"password_history"`
+	PasswordChangeRequired  bool                       `json:"password_change_required"`
+	Roles                   []string                   `json:"roles"`
+	ApiKeys                 []int64                    `json:"api_keys"`
+	TwofactorConfig         map[string]json.RawMessage `json:"twofactor_config"`
+}
+
+type UserShellChoicesResult struct {
+}
+
 type UserCreateArgs struct {
 	Uid                  *int64          `json:"uid,omitempty"`
 	Username             string          `json:"username"`
@@ -85,21 +135,21 @@ type UserUpdateArgs struct {
 	Home                 string          `json:"home,omitempty"`
 	Shell                string          `json:"shell,omitempty"`
 	FullName             string          `json:"full_name,omitempty"`
-	Smb                  bool            `json:"smb,omitempty"`
+	Smb                  *bool           `json:"smb"`
 	UsernsIdmap          json.RawMessage `json:"userns_idmap,omitempty"`
 	Group                *int64          `json:"group,omitempty"`
-	Groups               []int64         `json:"groups,omitempty"`
-	PasswordDisabled     bool            `json:"password_disabled,omitempty"`
-	SshPasswordEnabled   bool            `json:"ssh_password_enabled,omitempty"`
+	Groups               []int64         `json:"groups"`
+	PasswordDisabled     *bool           `json:"password_disabled"`
+	SshPasswordEnabled   *bool           `json:"ssh_password_enabled"`
 	Sshpubkey            *string         `json:"sshpubkey,omitempty"`
-	Locked               bool            `json:"locked,omitempty"`
-	SudoCommands         []string        `json:"sudo_commands,omitempty"`
-	SudoCommandsNopasswd []string        `json:"sudo_commands_nopasswd,omitempty"`
+	Locked               *bool           `json:"locked"`
+	SudoCommands         []string        `json:"sudo_commands"`
+	SudoCommandsNopasswd []string        `json:"sudo_commands_nopasswd"`
 	Email                *string         `json:"email,omitempty"`
-	HomeCreate           bool            `json:"home_create,omitempty"`
+	HomeCreate           *bool           `json:"home_create"`
 	HomeMode             string          `json:"home_mode,omitempty"`
 	Password             *string         `json:"password,omitempty"`
-	RandomPassword       bool            `json:"random_password,omitempty"`
+	RandomPassword       *bool           `json:"random_password"`
 }
 
 func UserCreate(ctx context.Context, c client.Caller, args UserCreateArgs) (*User, error) {
@@ -143,12 +193,12 @@ func UserGetNextUid(ctx context.Context, c client.Caller) (int64, error) {
 	return result, nil
 }
 
-func UserGetUserObj(ctx context.Context, c client.Caller, args UserGetUserObjArgs) (*User, error) {
+func UserGetUserObj(ctx context.Context, c client.Caller, args UserGetUserObjArgs) (*UserGetUserObjResult, error) {
 	raw, err := c.Call(ctx, "user.get_user_obj", []any{args})
 	if err != nil {
 		return nil, err
 	}
-	var result User
+	var result UserGetUserObjResult
 	if err := json.Unmarshal(raw, &result); err != nil {
 		return nil, err
 	}
@@ -172,12 +222,12 @@ func UserQuery(ctx context.Context, c client.Caller) (json.RawMessage, error) {
 	return result, nil
 }
 
-func UserRenew2faSecret(ctx context.Context, c client.Caller) (*User, error) {
+func UserRenew2faSecret(ctx context.Context, c client.Caller) (*UserRenew2faSecretResult, error) {
 	raw, err := c.Call(ctx, "user.renew_2fa_secret", []any{})
 	if err != nil {
 		return nil, err
 	}
-	var result User
+	var result UserRenew2faSecretResult
 	if err := json.Unmarshal(raw, &result); err != nil {
 		return nil, err
 	}
@@ -194,12 +244,12 @@ func UserSetupLocalAdministrator(ctx context.Context, c client.Caller) error {
 	return err
 }
 
-func UserShellChoices(ctx context.Context, c client.Caller) (*User, error) {
+func UserShellChoices(ctx context.Context, c client.Caller) (*UserShellChoicesResult, error) {
 	raw, err := c.Call(ctx, "user.shell_choices", []any{})
 	if err != nil {
 		return nil, err
 	}
-	var result User
+	var result UserShellChoicesResult
 	if err := json.Unmarshal(raw, &result); err != nil {
 		return nil, err
 	}
