@@ -1,0 +1,866 @@
+{
+  "user.create": {
+    "description": "Create a new user.",
+    "cli_description": "Create a new user",
+    "examples": {},
+    "item_method": false,
+    "no_auth_required": false,
+    "filterable": false,
+    "filterable_schema": null,
+    "pass_application": false,
+    "require_websocket": false,
+    "job": false,
+    "downloadable": false,
+    "uploadable": false,
+    "check_pipes": false,
+    "roles": [
+      "ACCOUNT_WRITE"
+    ],
+    "accepts": [
+      {
+        "additionalProperties": false,
+        "properties": {
+          "uid": {
+            "anyOf": [
+              {
+                "maximum": 90000000,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "UNIX UID. If not provided, it is automatically filled with the next one available.",
+            "title": "uid",
+            "_name_": "uid",
+            "_required_": false
+          },
+          "username": {
+            "description": "String used to uniquely identify the user on the server. In order to be portable across     systems, local user names must be composed of characters from the POSIX portable filename     character set (IEEE Std 1003.1-2024 section 3.265). This means alphanumeric characters,     hyphens, underscores, and periods. Usernames also may not begin with a hyphen or a period.",
+            "title": "username",
+            "type": "string",
+            "_name_": "username",
+            "_required_": true
+          },
+          "full_name": {
+            "description": "Comment field to provide additional information about the user account. Typically, this is     the full name of the user or a short description of a service account. There are no character set restrictions     for this field. This field is for information only. ",
+            "minLength": 1,
+            "title": "full_name",
+            "type": "string",
+            "_name_": "full_name",
+            "_required_": true
+          },
+          "userns_idmap": {
+            "anyOf": [
+              {
+                "enum": [
+                  "DIRECT",
+                  null
+                ]
+              },
+              {
+                "maximum": 4294967294,
+                "minimum": 1,
+                "type": "integer"
+              }
+            ],
+            "default": null,
+            "description": "Specifies the subuid mapping for this user. If DIRECT then the UID will be     directly mapped to all containers. Alternatively, the target UID may be     explicitly specified. If `null`, then the UID will not be mapped.\n\nNOTE: This field will be ignored for users that have been assigned TrueNAS roles.",
+            "title": "userns_idmap",
+            "_name_": "userns_idmap",
+            "_required_": false
+          }
+        },
+        "required": [
+          "username",
+          "full_name"
+        ],
+        "title": "user_create",
+        "type": "object",
+        "description": "Configuration for creating a new user account.",
+        "_name_": "user_create",
+        "_required_": true,
+        "_attrs_order_": [
+          "uid",
+          "username",
+          "full_name",
+          "userns_idmap"
+        ]
+      }
+    ],
+    "returns": [
+      {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "description": "This is the API identifier for the user. Use this ID for `user.update` and `user.delete` API calls. This ID     also appears in the `users` array for each group entry in `group.query` results.\n\nNOTE: For users from a directory service, the `id` is calculated by adding 100000000 to the `uid`. This ensures     consistent API results. You cannot change directory service accounts through TrueNAS. ",
+            "title": "id",
+            "type": "integer",
+            "_name_": "id",
+            "_required_": true
+          },
+          "uid": {
+            "description": "A non-negative integer used to identify a system user. TrueNAS uses this value for permission     checks and many other system purposes. ",
+            "title": "uid",
+            "type": "integer",
+            "_name_": "uid",
+            "_required_": true
+          },
+          "username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "minLength": 1,
+                "type": "string"
+              }
+            ],
+            "description": "A string used to identify a user. Local accounts must use characters from the POSIX portable filename     character set. ",
+            "title": "username",
+            "_name_": "username",
+            "_required_": true
+          },
+          "full_name": {
+            "description": "Comment field to provide additional information about the user account. Typically, this is     the full name of the user or a short description of a service account. There are no character set restrictions     for this field. This field is for information only. ",
+            "title": "full_name",
+            "type": "string",
+            "_name_": "full_name",
+            "_required_": true
+          }
+        },
+        "required": [
+          "id",
+          "uid",
+          "username",
+          "full_name"
+        ],
+        "title": "result",
+        "type": "object",
+        "description": "The newly created user account with password information.",
+        "_name_": "result",
+        "_required_": true,
+        "_attrs_order_": [
+          "id",
+          "uid",
+          "username",
+          "full_name"
+        ]
+      }
+    ]
+  },
+  "user.delete": {
+    "description": "Delete user `id`.\n\nThe `delete_group` option deletes the user primary group if it is not being used by\nany other user.",
+    "cli_description": "Delete user `id`",
+    "examples": {},
+    "item_method": true,
+    "no_auth_required": false,
+    "filterable": false,
+    "filterable_schema": null,
+    "pass_application": true,
+    "require_websocket": false,
+    "job": false,
+    "downloadable": false,
+    "uploadable": false,
+    "check_pipes": false,
+    "roles": [
+      "ACCOUNT_WRITE"
+    ],
+    "accepts": [
+      {
+        "description": "ID of the user account to delete.",
+        "title": "id",
+        "type": "integer",
+        "_name_": "id",
+        "_required_": true
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "delete_group": {
+            "default": true,
+            "description": "Delete the user primary group if it is not being used by any other user.",
+            "title": "delete_group",
+            "type": "boolean",
+            "_name_": "delete_group",
+            "_required_": false
+          }
+        },
+        "title": "options",
+        "type": "object",
+        "description": "Options controlling the user deletion process.",
+        "_name_": "options",
+        "_required_": false,
+        "_attrs_order_": [
+          "delete_group"
+        ]
+      }
+    ],
+    "returns": [
+      {
+        "description": "ID of the deleted user account.",
+        "title": "result",
+        "type": "integer",
+        "_name_": "result",
+        "_required_": true
+      }
+    ]
+  },
+  "user.get_instance": {
+    "description": "Returns instance matching `id`. If `id` is not found, Validation error is raised.\n\nPlease see `query` method documentation for `options`.",
+    "cli_description": "Returns instance matching `id`",
+    "examples": {},
+    "item_method": false,
+    "no_auth_required": false,
+    "filterable": false,
+    "filterable_schema": null,
+    "pass_application": false,
+    "require_websocket": false,
+    "job": false,
+    "downloadable": false,
+    "uploadable": false,
+    "check_pipes": false,
+    "roles": [
+      "ACCOUNT_READ",
+      "ACCOUNT_WRITE",
+      "READONLY_ADMIN",
+      "SHARING_ADMIN"
+    ],
+    "accepts": [
+      {
+        "title": "id",
+        "type": "integer",
+        "_name_": "id",
+        "_required_": true
+      },
+      {
+        "additionalProperties": false,
+        "description": "Query options customize the results returned by a query method. More complete documentation with examples     are covered in the \"Query methods\" section of the TrueNAS API documentation. ",
+        "properties": {
+          "extra": {
+            "default": {},
+            "description": "Extra options are defined on a per-endpoint basis and are described in the documentation for the associated     query method. ",
+            "title": "extra",
+            "type": "object",
+            "_name_": "extra",
+            "_required_": false
+          },
+          "order_by": {
+            "default": [],
+            "description": "An array of field names describing the manner in which query results should be ordered. The field names may     also have one of more of the following special prefixes: `-` (reverse sort direction), `nulls_first:` (place     any null values at the head of the results list), `nulls_last:` (place any null values at the tail of the     results list). ",
+            "examples": [
+              [
+                "size",
+                "-devname",
+                "nulls_first:-expiretime"
+              ]
+            ],
+            "items": [
+              {
+                "type": "string"
+              }
+            ],
+            "title": "order_by",
+            "type": "array",
+            "_name_": "order_by",
+            "_required_": false
+          },
+          "select": {
+            "default": [],
+            "description": "An array of field names specifying the exact fields to include in the query return. The dot character `.`     may be used to explicitly select only subkeys of the query result. ",
+            "examples": [
+              [
+                "username",
+                "Authentication.status"
+              ]
+            ],
+            "items": [
+              {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "items": [
+                      {}
+                    ],
+                    "type": "array"
+                  }
+                ]
+              }
+            ],
+            "title": "select",
+            "type": "array",
+            "_name_": "select",
+            "_required_": false
+          },
+          "count": {
+            "default": false,
+            "description": "Return a numeric value representing the number of items that match the specified `query-filters`. ",
+            "title": "count",
+            "type": "boolean",
+            "_name_": "count",
+            "_required_": false
+          },
+          "get": {
+            "default": false,
+            "description": "Return the JSON object of the first result matching the specified `query-filters`. The query fails     if there specified `query-filters` return no results. ",
+            "title": "get",
+            "type": "boolean",
+            "_name_": "get",
+            "_required_": false
+          },
+          "offset": {
+            "default": 0,
+            "description": "This specifies the beginning offset of the results array. When combined with the `limit` query-option     it may be used to implement pagination of large results arrays. WARNING: some query methods provide     volatile results and the onus is on the developer to understand whether pagination is appropriate     for a particular query API method. ",
+            "title": "offset",
+            "type": "integer",
+            "_name_": "offset",
+            "_required_": false
+          },
+          "limit": {
+            "default": 0,
+            "description": "This specifies the maximum number of results matching the specified `query-filters` to return. When     combined wtih the `offset` query-option it may be used to implement pagination of large results arrays.\n\nWARNING: Some query methods provide volatile results and the onus is on the developer to understand whether     pagination is appropriate for a particular query API method. ",
+            "title": "limit",
+            "type": "integer",
+            "_name_": "limit",
+            "_required_": false
+          },
+          "force_sql_filters": {
+            "default": false,
+            "description": "Force use of SQL for result filtering to reduce response time. May not work for all methods.",
+            "title": "force_sql_filters",
+            "type": "boolean",
+            "_name_": "force_sql_filters",
+            "_required_": false
+          }
+        },
+        "title": "options",
+        "type": "object",
+        "default": {},
+        "_name_": "options",
+        "_required_": false,
+        "_attrs_order_": [
+          "extra",
+          "order_by",
+          "select",
+          "count",
+          "get",
+          "offset",
+          "limit",
+          "force_sql_filters"
+        ]
+      }
+    ],
+    "returns": [
+      {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "description": "This is the API identifier for the user. Use this ID for `user.update` and `user.delete` API calls. This ID     also appears in the `users` array for each group entry in `group.query` results.\n\nNOTE: For users from a directory service, the `id` is calculated by adding 100000000 to the `uid`. This ensures     consistent API results. You cannot change directory service accounts through TrueNAS. ",
+            "title": "id",
+            "type": "integer",
+            "_name_": "id",
+            "_required_": true
+          },
+          "uid": {
+            "description": "A non-negative integer used to identify a system user. TrueNAS uses this value for permission     checks and many other system purposes. ",
+            "title": "uid",
+            "type": "integer",
+            "_name_": "uid",
+            "_required_": true
+          },
+          "username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "minLength": 1,
+                "type": "string"
+              }
+            ],
+            "description": "A string used to identify a user. Local accounts must use characters from the POSIX portable filename     character set. ",
+            "title": "username",
+            "_name_": "username",
+            "_required_": true
+          },
+          "unixhash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Hashed password for local accounts. This value is `null` for accounts provided by directory services. ",
+            "title": "unixhash",
+            "_name_": "unixhash",
+            "_required_": true
+          },
+          "smbhash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "NT hash of the local account password for `smb` users. This value is `null` for accounts provided by directory     services or non-SMB accounts. ",
+            "title": "smbhash",
+            "_name_": "smbhash",
+            "_required_": true
+          },
+          "home": {
+            "default": "/var/empty",
+            "description": "The local file system path for the user account's home directory.\nTypically, this is required only if the account has shell access (local or SSH) to TrueNAS.\nThis is not required for accounts used only for SMB share access. ",
+            "minLength": 1,
+            "title": "home",
+            "type": "string",
+            "_name_": "home",
+            "_required_": false
+          },
+          "shell": {
+            "default": "/usr/bin/zsh",
+            "description": "Available choices can be retrieved with `user.shell_choices`.",
+            "minLength": 1,
+            "title": "shell",
+            "type": "string",
+            "_name_": "shell",
+            "_required_": false
+          },
+          "full_name": {
+            "description": "Comment field to provide additional information about the user account. Typically, this is     the full name of the user or a short description of a service account. There are no character set restrictions     for this field. This field is for information only. ",
+            "title": "full_name",
+            "type": "string",
+            "_name_": "full_name",
+            "_required_": true
+          },
+          "builtin": {
+            "description": "If `true`, the user account is an internal system account for the TrueNAS server. Typically, one should     create dedicated user accounts for access to the TrueNAS server webui and shares. ",
+            "title": "builtin",
+            "type": "boolean",
+            "_name_": "builtin",
+            "_required_": true
+          },
+          "smb": {
+            "default": true,
+            "description": "The user account may be used to access SMB shares. If set to `true` then TrueNAS stores an NT hash of the     user account's password for local accounts. This feature is unavailable for local accounts when General Purpose OS     STIG compatibility mode is enabled. If set to `true` the user is automatically added to the `builtin_users`     group.",
+            "title": "smb",
+            "type": "boolean",
+            "_name_": "smb",
+            "_required_": false
+          },
+          "userns_idmap": {
+            "anyOf": [
+              {
+                "enum": [
+                  "DIRECT",
+                  null
+                ]
+              },
+              {
+                "maximum": 4294967294,
+                "minimum": 1,
+                "type": "integer"
+              }
+            ],
+            "default": null,
+            "description": "Specifies the subuid mapping for this user. If DIRECT then the UID will be     directly mapped to all containers. Alternatively, the target UID may be     explicitly specified. If `null`, then the UID will not be mapped.\n\nNOTE: This field will be ignored for users that have been assigned TrueNAS roles.",
+            "title": "userns_idmap",
+            "_name_": "userns_idmap",
+            "_required_": false
+          },
+          "group": {
+            "description": "The primary group of the user account. ",
+            "title": "group",
+            "type": "object",
+            "_name_": "group",
+            "_required_": true
+          },
+          "groups": {
+            "description": "Array of additional groups to which the user belongs. NOTE: Groups are identified by their group entry `id`,     not their Unix group ID (`gid`). ",
+            "items": [
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "groups",
+            "type": "array",
+            "_name_": "groups",
+            "_required_": false
+          },
+          "password_disabled": {
+            "default": false,
+            "description": "If set to `true` password authentication for the user account is disabled.\n\nNOTE: Users with password authentication disabled may still authenticate to the TrueNAS server by other methods,     such as SSH key-based authentication.\n\nNOTE: Password authentication is required for `smb` users.",
+            "title": "password_disabled",
+            "type": "boolean",
+            "_name_": "password_disabled",
+            "_required_": false
+          },
+          "ssh_password_enabled": {
+            "default": false,
+            "description": "Allow the user to authenticate to the TrueNAS SSH server using a password.\n\nWARNING: The established best practice is to use only key-based authentication for SSH servers. ",
+            "title": "ssh_password_enabled",
+            "type": "boolean",
+            "_name_": "ssh_password_enabled",
+            "_required_": false
+          },
+          "sshpubkey": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "SSH public keys corresponding to private keys that authenticate this user to the TrueNAS SSH server. ",
+            "title": "sshpubkey",
+            "_name_": "sshpubkey",
+            "_required_": false
+          },
+          "locked": {
+            "default": false,
+            "description": "If set to `true` the account is locked. The account cannot be used to authenticate to the TrueNAS server. ",
+            "title": "locked",
+            "type": "boolean",
+            "_name_": "locked",
+            "_required_": false
+          },
+          "sudo_commands": {
+            "description": "An array of commands the user may execute with elevated privileges. User is prompted for password     when executing any command from the array. ",
+            "items": [
+              {
+                "minLength": 1,
+                "type": "string"
+              }
+            ],
+            "title": "sudo_commands",
+            "type": "array",
+            "_name_": "sudo_commands",
+            "_required_": false
+          },
+          "sudo_commands_nopasswd": {
+            "description": "An array of commands the user may execute with elevated privileges. User is *not* prompted for password     when executing any command from the array. ",
+            "items": [
+              {
+                "minLength": 1,
+                "type": "string"
+              }
+            ],
+            "title": "sudo_commands_nopasswd",
+            "type": "array",
+            "_name_": "sudo_commands_nopasswd",
+            "_required_": false
+          },
+          "email": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Email address of the user. If the user has the `FULL_ADMIN` role, they will receive email alerts and     notifications. ",
+            "title": "email",
+            "_name_": "email",
+            "_required_": false
+          },
+          "local": {
+            "description": "If `true`, the account is local to the TrueNAS server. If `false`, the account is provided by a directory     service. ",
+            "title": "local",
+            "type": "boolean",
+            "_name_": "local",
+            "_required_": true
+          },
+          "immutable": {
+            "description": "If `true`, the account is system-provided and most fields related to it may not be changed. ",
+            "title": "immutable",
+            "type": "boolean",
+            "_name_": "immutable",
+            "_required_": true
+          },
+          "twofactor_auth_configured": {
+            "description": "If `true`, the account has been configured for two-factor authentication. Users are prompted for a     second factor when authenticating to the TrueNAS web UI and API. They may also be prompted when signing     in to the TrueNAS SSH server using a password (depending on global two-factor authentication settings). ",
+            "title": "twofactor_auth_configured",
+            "type": "boolean",
+            "_name_": "twofactor_auth_configured",
+            "_required_": true
+          },
+          "sid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The Security Identifier (SID) of the user if the account an `smb` account. The SMB server uses     this value to check share access and for other purposes. ",
+            "title": "sid",
+            "_name_": "sid",
+            "_required_": true
+          },
+          "last_password_change": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The date of the last password change for local user accounts.",
+            "title": "last_password_change",
+            "_name_": "last_password_change",
+            "_required_": true
+          },
+          "password_age": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The age in days of the password for local user accounts.",
+            "title": "password_age",
+            "_name_": "password_age",
+            "_required_": true
+          },
+          "password_history": {
+            "anyOf": [
+              {
+                "items": [
+                  {}
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "This contains hashes of the ten most recent passwords used by local user accounts, and is     for enforcing password history requirements as defined in system.security.",
+            "title": "password_history",
+            "_name_": "password_history",
+            "_required_": true
+          },
+          "password_change_required": {
+            "description": "Password change for local user account is required on next login.",
+            "title": "password_change_required",
+            "type": "boolean",
+            "_name_": "password_change_required",
+            "_required_": true
+          },
+          "roles": {
+            "description": "Array of roles assigned to this user's groups. Roles control administrative access to TrueNAS through     the web UI and API.",
+            "items": [
+              {
+                "type": "string"
+              }
+            ],
+            "title": "roles",
+            "type": "array",
+            "_name_": "roles",
+            "_required_": true
+          },
+          "api_keys": {
+            "description": "Array of API key IDs associated with this user account for programmatic access.",
+            "items": [
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "api_keys",
+            "type": "array",
+            "_name_": "api_keys",
+            "_required_": true
+          }
+        },
+        "required": [
+          "id",
+          "uid",
+          "username",
+          "unixhash",
+          "smbhash",
+          "full_name",
+          "builtin",
+          "group",
+          "local",
+          "immutable",
+          "twofactor_auth_configured",
+          "sid",
+          "last_password_change",
+          "password_age",
+          "password_history",
+          "password_change_required",
+          "roles",
+          "api_keys"
+        ],
+        "title": "result",
+        "type": "object",
+        "_name_": "result",
+        "_required_": true,
+        "_attrs_order_": [
+          "id",
+          "uid",
+          "username",
+          "unixhash",
+          "smbhash",
+          "home",
+          "shell",
+          "full_name",
+          "builtin",
+          "smb",
+          "userns_idmap",
+          "group",
+          "groups",
+          "password_disabled",
+          "ssh_password_enabled",
+          "sshpubkey",
+          "locked",
+          "sudo_commands",
+          "sudo_commands_nopasswd",
+          "email",
+          "local",
+          "immutable",
+          "twofactor_auth_configured",
+          "sid",
+          "last_password_change",
+          "password_age",
+          "password_history",
+          "password_change_required",
+          "roles",
+          "api_keys"
+        ]
+      }
+    ]
+  },
+  "user.update": {
+    "description": "Update user `id`.",
+    "cli_description": "Update attributes of an existing user",
+    "examples": {},
+    "item_method": true,
+    "no_auth_required": false,
+    "filterable": false,
+    "filterable_schema": null,
+    "pass_application": true,
+    "require_websocket": true,
+    "job": false,
+    "downloadable": false,
+    "uploadable": false,
+    "check_pipes": false,
+    "roles": [
+      "ACCOUNT_WRITE"
+    ],
+    "accepts": [
+      {
+        "description": "ID of the user account to update.",
+        "title": "id",
+        "type": "integer",
+        "_name_": "id",
+        "_required_": true
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "username": {
+            "description": "String used to uniquely identify the user on the server. In order to be portable across     systems, local user names must be composed of characters from the POSIX portable filename     character set (IEEE Std 1003.1-2024 section 3.265). This means alphanumeric characters,     hyphens, underscores, and periods. Usernames also may not begin with a hyphen or a period.",
+            "title": "username",
+            "type": "string",
+            "_name_": "username",
+            "_required_": false
+          },
+          "full_name": {
+            "description": "Comment field to provide additional information about the user account. Typically, this is     the full name of the user or a short description of a service account. There are no character set restrictions     for this field. This field is for information only. ",
+            "minLength": 1,
+            "title": "full_name",
+            "type": "string",
+            "_name_": "full_name",
+            "_required_": false
+          }
+        },
+        "title": "user_update",
+        "type": "object",
+        "description": "Updated configuration for the user account.",
+        "_name_": "user_update",
+        "_required_": true,
+        "_attrs_order_": [
+          "username",
+          "full_name"
+        ]
+      }
+    ],
+    "returns": [
+      {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "description": "This is the API identifier for the user. Use this ID for `user.update` and `user.delete` API calls. This ID     also appears in the `users` array for each group entry in `group.query` results.\n\nNOTE: For users from a directory service, the `id` is calculated by adding 100000000 to the `uid`. This ensures     consistent API results. You cannot change directory service accounts through TrueNAS. ",
+            "title": "id",
+            "type": "integer",
+            "_name_": "id",
+            "_required_": true
+          },
+          "uid": {
+            "description": "A non-negative integer used to identify a system user. TrueNAS uses this value for permission     checks and many other system purposes. ",
+            "title": "uid",
+            "type": "integer",
+            "_name_": "uid",
+            "_required_": true
+          },
+          "username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "minLength": 1,
+                "type": "string"
+              }
+            ],
+            "description": "A string used to identify a user. Local accounts must use characters from the POSIX portable filename     character set. ",
+            "title": "username",
+            "_name_": "username",
+            "_required_": true
+          },
+          "full_name": {
+            "description": "Comment field to provide additional information about the user account. Typically, this is     the full name of the user or a short description of a service account. There are no character set restrictions     for this field. This field is for information only. ",
+            "title": "full_name",
+            "type": "string",
+            "_name_": "full_name",
+            "_required_": true
+          }
+        },
+        "required": [
+          "id",
+          "uid",
+          "username",
+          "full_name"
+        ],
+        "title": "result",
+        "type": "object",
+        "description": "The updated user account with password information.",
+        "_name_": "result",
+        "_required_": true,
+        "_attrs_order_": [
+          "id",
+          "uid",
+          "username",
+          "full_name"
+        ]
+      }
+    ]
+  }
+}
