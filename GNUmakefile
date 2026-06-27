@@ -13,6 +13,18 @@ lint:
 generate:
 	go tool tfplugindocs generate -provider-name truenas
 
+codegen:
+	go run ./cmd/codegen \
+		--snapshot api/registry.json \
+		--namespaces user,group,pool.dataset,sharing.nfs,sharing.smb,pool \
+		--out internal/truenas/
+
+refresh-snapshot:
+	go run ./cmd/codegen \
+		--refresh \
+		--snapshot api/registry.json \
+		--namespaces user,group,pool.dataset,sharing.nfs,sharing.smb,pool
+
 fmt:
 	gofmt -s -w -e .
 	terraform fmt -recursive examples/
@@ -23,4 +35,4 @@ unit-tests:
 acc-tests:
 	TF_ACC=1 go test -v -coverprofile=coverage.out -covermode=atomic -timeout 120m ./...
 
-.PHONY: fmt lint build install generate unit-tests acc-tests
+.PHONY: fmt lint build install generate codegen refresh-snapshot unit-tests acc-tests
