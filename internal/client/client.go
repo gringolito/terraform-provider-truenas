@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -22,17 +23,43 @@ type WebSocketClient struct {
 	mu    sync.Mutex
 }
 
+const (
+	loginMaxRetries = 5
+	loginRetryDelay = 15 * time.Second
+)
+
 func NewWebSocketClient(host, apiKey, username, password string, insecureSkipVerify bool) (*WebSocketClient, error) {
 	url := fmt.Sprintf("wss://%s/api/current", host)
 	c, err := truenas_api.NewClient(url, !insecureSkipVerify)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to truenas: %w", err)
 	}
-	if err := c.Login(username, password, apiKey); err != nil {
-		c.Close()
-		return nil, fmt.Errorf("failed to authenticate: %w", err)
+
+	var loginErr error
+	for attempt := range loginMaxRetries {
+		loginErr = c.Login(username, password, apiKey)
+		if loginErr == nil {
+			return &WebSocketClient{inner: c}, nil
+		}
+		if !isTransientLoginError(loginErr) || attempt == loginMaxRetries-1 {
+			break
+		}
+		time.Sleep(loginRetryDelay)
 	}
-	return &WebSocketClient{inner: c}, nil
+
+	c.Close()
+	return nil, fmt.Errorf("failed to authenticate: %w", loginErr)
+}
+
+// isTransientLoginError reports whether err is a transient failure worth
+// retrying — a TrueNAS EBUSY rate-limit or a call timeout. The upstream SDK
+// returns plain string errors, so detection is done by substring.
+func isTransientLoginError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "EBUSY") || strings.Contains(msg, "timed out")
 }
 
 func (c *WebSocketClient) Call(ctx context.Context, method string, params any) (json.RawMessage, error) {

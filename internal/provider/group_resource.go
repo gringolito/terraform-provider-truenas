@@ -188,8 +188,7 @@ func (r *GroupResource) Read(ctx context.Context, req resource.ReadRequest, resp
 
 	g, err := truenas.GroupGetInstance(ctx, r.caller, state.Id.ValueInt64())
 	if err != nil {
-		var apiErr *client.APIError
-		if errors.As(err, &apiErr) && apiErr.ErrName == "MatchNotFound" {
+		if isNotFoundErr(err) {
 			resp.State.RemoveResource(ctx)
 			return
 		}
@@ -218,7 +217,14 @@ func (r *GroupResource) Update(ctx context.Context, req resource.UpdateRequest, 
 		Smb:                  &smb,
 		SudoCommands:         setToStringSlice(ctx, plan.SudoCommands, &resp.Diagnostics),
 		SudoCommandsNopasswd: setToStringSlice(ctx, plan.SudoCommandsNopasswd, &resp.Diagnostics),
-		UsernsIdmap:          usernsIdmapToJSON(plan.UsernsIdmap),
+		// Users is a read-only computed attribute — never send it in update
+		// to avoid inadvertently clearing group membership.
+		Users: []int64{},
+	}
+	// Only send userns_idmap when the plan has an explicit value; omit it
+	// (leave nil so json omitempty kicks in) when unchanged/null.
+	if !plan.UsernsIdmap.IsNull() && !plan.UsernsIdmap.IsUnknown() {
+		args.UsernsIdmap = usernsIdmapToJSON(plan.UsernsIdmap)
 	}
 	if resp.Diagnostics.HasError() {
 		return
@@ -245,8 +251,7 @@ func (r *GroupResource) Delete(ctx context.Context, req resource.DeleteRequest, 
 		return
 	}
 	if err := truenas.GroupDelete(ctx, r.caller, state.Id.ValueInt64()); err != nil {
-		var apiErr *client.APIError
-		if errors.As(err, &apiErr) && apiErr.ErrName == "MatchNotFound" {
+		if isNotFoundErr(err) {
 			return
 		}
 		resp.Diagnostics.AddError("Error deleting group", err.Error())
@@ -334,6 +339,11 @@ func int64SliceToSet(ctx context.Context, vals []int64, diags *diag.Diagnostics)
 	s, d := types.SetValueFrom(ctx, types.Int64Type, vals)
 	diags.Append(d...)
 	return s
+}
+
+func isNotFoundErr(err error) bool {
+	var apiErr *client.APIError
+	return errors.As(err, &apiErr) && apiErr.IsNotFound()
 }
 
 func groupToModel(ctx context.Context, g *truenas.Group, m *GroupResourceModel, diags *diag.Diagnostics) {

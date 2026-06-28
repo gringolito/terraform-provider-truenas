@@ -130,7 +130,8 @@ func TestAccGroupResource_outOfBandDeletion(t *testing.T) {
 				),
 			},
 			{
-				// Delete the group out of band.
+				// Delete the group out of band, then verify Terraform detects
+				// the drift (plan shows "will create") without re-applying.
 				PreConfig: func() {
 					c := accTestCaller(t)
 					if err := truenas.GroupDelete(context.Background(), c, groupID); err != nil {
@@ -138,6 +139,7 @@ func TestAccGroupResource_outOfBandDeletion(t *testing.T) {
 					}
 				},
 				Config:             testAccGroupConfig(name),
+				PlanOnly:           true,
 				ExpectNonEmptyPlan: true,
 			},
 		},

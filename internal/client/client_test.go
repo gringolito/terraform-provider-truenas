@@ -163,6 +163,31 @@ func TestCall_APIError(t *testing.T) {
 	}
 }
 
+func TestCall_RPCCodeError(t *testing.T) {
+	srv := newWSTestServer(t)
+	c := srv.newClient(t)
+
+	srv.setError("group.get_instance", json.RawMessage(`{"code":-32602,"message":"Invalid params"}`))
+
+	_, err := c.Call(context.Background(), "group.get_instance", nil)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	var apiErr *client.APIError
+	if !errors.As(err, &apiErr) {
+		t.Fatalf("expected *client.APIError, got %T: %v", err, err)
+	}
+	if apiErr.Code != -32602 {
+		t.Errorf("Code: got %d, want -32602", apiErr.Code)
+	}
+	if apiErr.Message != "Invalid params" {
+		t.Errorf("Message: got %q, want %q", apiErr.Message, "Invalid params")
+	}
+	if !apiErr.IsNotFound() {
+		t.Error("IsNotFound() should be true for code -32602")
+	}
+}
+
 func TestCallWithJob_NotImplemented(t *testing.T) {
 	srv := newWSTestServer(t)
 	c := srv.newClient(t)
