@@ -210,8 +210,8 @@ func UserHasLocalAdministratorSetUp(ctx context.Context, c client.Caller) error 
 	return err
 }
 
-func UserQuery(ctx context.Context, c client.Caller) (json.RawMessage, error) {
-	raw, err := c.Call(ctx, "user.query", []any{})
+func UserQuery(ctx context.Context, c client.Caller, filters ...QueryFilter) (json.RawMessage, error) {
+	raw, err := c.Call(ctx, "user.query", []any{filtersToRaw(filters)})
 	if err != nil {
 		return nil, err
 	}

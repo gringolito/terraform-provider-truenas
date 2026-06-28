@@ -177,14 +177,14 @@ func TestCall_RPCCodeError(t *testing.T) {
 	if !errors.As(err, &apiErr) {
 		t.Fatalf("expected *client.APIError, got %T: %v", err, err)
 	}
-	if apiErr.Code != -32602 {
-		t.Errorf("Code: got %d, want -32602", apiErr.Code)
+	if apiErr.Code != client.ErrCodeInvalidParams {
+		t.Errorf("Code: got %d, want %d", apiErr.Code, client.ErrCodeInvalidParams)
 	}
 	if apiErr.Message != "Invalid params" {
 		t.Errorf("Message: got %q, want %q", apiErr.Message, "Invalid params")
 	}
 	if !apiErr.IsNotFound() {
-		t.Error("IsNotFound() should be true for code -32602")
+		t.Errorf("IsNotFound() should be true for code %d", client.ErrCodeInvalidParams)
 	}
 }
 

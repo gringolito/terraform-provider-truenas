@@ -2,7 +2,6 @@ package provider
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
@@ -51,7 +50,7 @@ func (d *GroupDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, 
 			"id": schema.Int64Attribute{
 				Optional:            true,
 				Computed:            true,
-				MarkdownDescription: "API identifier of the group. Set this or `name` (not both).",
+				MarkdownDescription: "Identifier of the group. Set this or `name` (not both).",
 			},
 			"name": schema.StringAttribute{
 				Optional:            true,
@@ -104,7 +103,7 @@ func (d *GroupDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, 
 			"users": schema.SetAttribute{
 				Computed:            true,
 				ElementType:         types.Int64Type,
-				MarkdownDescription: "API identifiers of local users who are members of this group.",
+				MarkdownDescription: "Unix UIDs of local users who are members of this group.",
 			},
 		},
 	}
@@ -141,50 +140,32 @@ func (d *GroupDataSource) Read(ctx context.Context, req datasource.ReadRequest, 
 		return
 	}
 
-	var groupID int64
+	var g *truenas.Group
+	var err error
 	if hasID {
-		groupID = config.Id.ValueInt64()
+		g, err = truenas.GroupGetInstance(ctx, d.caller, config.Id.ValueInt64())
 	} else {
-		// Look up by name via group.query, then fetch the canonical object by ID.
-		name := config.Name.ValueString()
-		raw, err := d.caller.Call(ctx, "group.query",
-			[]any{[]any{[]any{"name", "=", name}}})
-		if err != nil {
-			resp.Diagnostics.AddError("Error querying group by name", err.Error())
-			return
-		}
-		var results []struct {
-			Id int64 `json:"id"`
-		}
-		if err := json.Unmarshal(raw, &results); err != nil {
-			resp.Diagnostics.AddError("Error parsing group query result", err.Error())
-			return
-		}
-		if len(results) == 0 {
-			resp.Diagnostics.AddError("Group not found",
-				fmt.Sprintf("No group with name %q found.", name))
-			return
-		}
-		groupID = results[0].Id
+		g, err = truenas.GroupGetByName(ctx, d.caller, config.Name.ValueString())
 	}
-
-	g, err := truenas.GroupGetInstance(ctx, d.caller, groupID)
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading group", err.Error())
 		return
 	}
 
 	var state GroupDataSourceModel
-	groupToDataSourceModel(ctx, g, &state, &resp.Diagnostics)
+	groupToDataSourceModel(ctx, d.caller, g, &state, &resp.Diagnostics)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
-func groupToDataSourceModel(ctx context.Context, g *truenas.Group, m *GroupDataSourceModel, diags *diag.Diagnostics) {
+func groupToDataSourceModel(ctx context.Context, c client.Caller, g *truenas.Group, m *GroupDataSourceModel, diags *diag.Diagnostics) {
 	rm := &GroupResourceModel{}
-	groupToModel(ctx, g, rm, diags)
+	groupToModelWithUIDs(ctx, c, g, rm, diags)
+	if diags.HasError() {
+		return
+	}
 	m.Id = rm.Id
 	m.Name = rm.Name
 	m.Gid = rm.Gid

@@ -103,6 +103,69 @@ func TestGroupDelete(t *testing.T) {
 	}
 }
 
+func TestGroupGetByName(t *testing.T) {
+	payload := `[{"id":42,"gid":1000,"name":"testgroup","builtin":false,
+		"sudo_commands":[],"sudo_commands_nopasswd":[],"smb":true,"userns_idmap":null,
+		"group":"testgroup","local":true,"sid":null,"roles":[],"users":[],"immutable":false}]`
+	fake := &clienttest.FakeCaller{
+		Responses: map[string]json.RawMessage{
+			"group.query": json.RawMessage(payload),
+		},
+	}
+	g, err := truenas.GroupGetByName(context.Background(), fake, "testgroup")
+	if err != nil {
+		t.Fatalf("GroupGetByName: %v", err)
+	}
+	if g.Id != 42 {
+		t.Errorf("Id: got %d, want 42", g.Id)
+	}
+	if g.Name != "testgroup" {
+		t.Errorf("Name: got %q, want %q", g.Name, "testgroup")
+	}
+}
+
+func TestGroupGetByName_NotFound(t *testing.T) {
+	fake := &clienttest.FakeCaller{
+		Responses: map[string]json.RawMessage{
+			"group.query": json.RawMessage(`[]`),
+		},
+	}
+	_, err := truenas.GroupGetByName(context.Background(), fake, "missing")
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestResolveUserUIDs(t *testing.T) {
+	payload := `[{"id":10,"uid":1001},{"id":20,"uid":1002}]`
+	fake := &clienttest.FakeCaller{
+		Responses: map[string]json.RawMessage{
+			"user.query": json.RawMessage(payload),
+		},
+	}
+	uids, err := truenas.ResolveUserUIDs(context.Background(), fake, []int64{10, 20})
+	if err != nil {
+		t.Fatalf("ResolveUserUIDs: %v", err)
+	}
+	if len(uids) != 2 {
+		t.Fatalf("len: got %d, want 2", len(uids))
+	}
+	if uids[0] != 1001 || uids[1] != 1002 {
+		t.Errorf("uids: got %v, want [1001 1002]", uids)
+	}
+}
+
+func TestResolveUserUIDs_Empty(t *testing.T) {
+	fake := &clienttest.FakeCaller{}
+	uids, err := truenas.ResolveUserUIDs(context.Background(), fake, nil)
+	if err != nil {
+		t.Fatalf("ResolveUserUIDs: %v", err)
+	}
+	if len(uids) != 0 {
+		t.Errorf("expected empty, got %v", uids)
+	}
+}
+
 func TestGroupGetInstance_NotFound(t *testing.T) {
 	fake := &clienttest.FakeCaller{
 		Errors: map[string]error{

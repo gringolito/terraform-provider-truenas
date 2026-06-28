@@ -118,8 +118,8 @@ func GroupHasPasswordEnabledUser(ctx context.Context, c client.Caller) error {
 	return err
 }
 
-func GroupQuery(ctx context.Context, c client.Caller) (json.RawMessage, error) {
-	raw, err := c.Call(ctx, "group.query", []any{})
+func GroupQuery(ctx context.Context, c client.Caller, filters ...QueryFilter) (json.RawMessage, error) {
+	raw, err := c.Call(ctx, "group.query", []any{filtersToRaw(filters)})
 	if err != nil {
 		return nil, err
 	}

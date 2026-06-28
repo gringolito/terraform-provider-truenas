@@ -36,17 +36,17 @@ resource "truenas_group" "example" {
 - `smb` (Boolean) When `true` the group can be used for SMB share ACL entries.
 - `sudo_commands` (Set of String) Commands that group members may execute with elevated privileges (password prompted).
 - `sudo_commands_nopasswd` (Set of String) Commands that group members may execute with elevated privileges (no password required).
-- `userns_idmap` (Number) Subgid mapping for containers. `0` maps to `DIRECT` (the GID is mapped directly). A positive integer sets an explicit target GID. Null means no mapping.
+- `userns_idmap` (Number) Subgid mapping for containers. `0` maps to `DIRECT` (the GID is mapped directly). A positive integer sets an explicit target GID. Omit for no mapping.
 
 ### Read-Only
 
 - `builtin` (Boolean) Whether this is an internal system group.
-- `id` (Number) API identifier of the group. Used for `group.update` and `group.delete` calls, and as the import ID.
+- `id` (Number) API identifier of the group.
 - `immutable` (Boolean) Whether this group entry can be modified.
 - `local` (Boolean) Whether this group is local to the TrueNAS server.
 - `roles` (Set of String) TrueNAS roles assigned to this group.
 - `sid` (String) Security Identifier (SID) for SMB-enabled groups. Null when SMB is disabled.
-- `users` (Set of Number) API identifiers of local users who are members of this group. Read-only; manage membership via the `truenas_user` resource.
+- `users` (Set of Number) Unix UIDs of local users who are members of this group.
 
 ## Import
 

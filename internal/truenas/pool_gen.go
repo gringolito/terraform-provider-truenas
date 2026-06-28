@@ -253,8 +253,8 @@ func PoolProcesses(ctx context.Context, c client.Caller, id int64) ([]*PoolProce
 	return result, nil
 }
 
-func PoolQuery(ctx context.Context, c client.Caller) (json.RawMessage, error) {
-	raw, err := c.Call(ctx, "pool.query", []any{})
+func PoolQuery(ctx context.Context, c client.Caller, filters ...QueryFilter) (json.RawMessage, error) {
+	raw, err := c.Call(ctx, "pool.query", []any{filtersToRaw(filters)})
 	if err != nil {
 		return nil, err
 	}

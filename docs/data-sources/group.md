@@ -29,7 +29,7 @@ data "truenas_group" "by_name" {
 
 ### Optional
 
-- `id` (Number) API identifier of the group. Set this or `name` (not both).
+- `id` (Number) Identifier of the group. Set this or `name` (not both).
 - `name` (String) Name of the group. Set this or `id` (not both).
 
 ### Read-Only
@@ -44,4 +44,4 @@ data "truenas_group" "by_name" {
 - `sudo_commands` (Set of String) Commands group members may execute with elevated privileges (password prompted).
 - `sudo_commands_nopasswd` (Set of String) Commands group members may execute with elevated privileges (no password).
 - `userns_idmap` (Number) Subgid mapping for containers. `0` means `DIRECT`. Null means no mapping.
-- `users` (Set of Number) API identifiers of local users who are members of this group.
+- `users` (Set of Number) Unix UIDs of local users who are members of this group.

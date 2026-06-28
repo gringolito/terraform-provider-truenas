@@ -302,6 +302,7 @@ type methodSig struct {
 	method           string
 	funcName         string
 	hasIDArg         bool
+	hasQueryFilters  bool
 	isUpdateArgs     bool
 	argsStructName   string
 	argsSchema       *Schema
@@ -323,9 +324,13 @@ func classifyMethod(method string, def MethodDef, prefix string) methodSig {
 	//            (the [id, patch] update pattern)
 	// Pattern 4: integer first, optional or absent second  →  (ctx, c, id int64)
 	//            (get_instance, delete — optional trailing options are dropped)
+	// Pattern 5: query verb with optional array first arg  →  (ctx, c, filters ...QueryFilter)
 	switch {
 	case len(def.Accepts) == 0:
 		// no args
+
+	case verb == "query" && len(def.Accepts) >= 1 && def.Accepts[0].Type == "array":
+		sig.hasQueryFilters = true
 
 	case len(def.Accepts) == 1 && isObjectLike(def.Accepts[0]):
 		a := def.Accepts[0]
@@ -530,6 +535,9 @@ func emitFunc(buf *bytes.Buffer, s methodSig) {
 	if s.hasIDArg {
 		buf.WriteString(", id int64")
 	}
+	if s.hasQueryFilters {
+		buf.WriteString(", filters ...QueryFilter")
+	}
 	if s.argsStructName != "" {
 		buf.WriteString(", args " + s.argsStructName)
 	}
@@ -566,6 +574,8 @@ func emitFunc(buf *bytes.Buffer, s methodSig) {
 
 func buildParams(s methodSig) string {
 	switch {
+	case s.hasQueryFilters:
+		return "[]any{filtersToRaw(filters)}"
 	case s.hasIDArg && s.argsStructName != "":
 		return "[]any{id, args}"
 	case s.hasIDArg:

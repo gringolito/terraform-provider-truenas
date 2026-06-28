@@ -88,8 +88,8 @@ func SharingNfsGetInstance(ctx context.Context, c client.Caller, id int64) (*Sha
 	return &result, nil
 }
 
-func SharingNfsQuery(ctx context.Context, c client.Caller) (json.RawMessage, error) {
-	raw, err := c.Call(ctx, "sharing.nfs.query", []any{})
+func SharingNfsQuery(ctx context.Context, c client.Caller, filters ...QueryFilter) (json.RawMessage, error) {
+	raw, err := c.Call(ctx, "sharing.nfs.query", []any{filtersToRaw(filters)})
 	if err != nil {
 		return nil, err
 	}

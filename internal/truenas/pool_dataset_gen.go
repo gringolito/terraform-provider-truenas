@@ -297,8 +297,8 @@ func PoolDatasetPromote(ctx context.Context, c client.Caller) error {
 	return err
 }
 
-func PoolDatasetQuery(ctx context.Context, c client.Caller) (json.RawMessage, error) {
-	raw, err := c.Call(ctx, "pool.dataset.query", []any{})
+func PoolDatasetQuery(ctx context.Context, c client.Caller, filters ...QueryFilter) (json.RawMessage, error) {
+	raw, err := c.Call(ctx, "pool.dataset.query", []any{filtersToRaw(filters)})
 	if err != nil {
 		return nil, err
 	}

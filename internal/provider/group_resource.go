@@ -58,7 +58,7 @@ func (r *GroupResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 		Attributes: map[string]schema.Attribute{
 			"id": schema.Int64Attribute{
 				Computed:            true,
-				MarkdownDescription: "API identifier of the group. Used for `group.update` and `group.delete` calls, and as the import ID.",
+				MarkdownDescription: "API identifier of the group.",
 				PlanModifiers:       []planmodifier.Int64{int64planmodifier.UseStateForUnknown()},
 			},
 			"name": schema.StringAttribute{
@@ -94,7 +94,7 @@ func (r *GroupResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 			"userns_idmap": schema.Int64Attribute{
 				Optional:            true,
 				Computed:            true,
-				MarkdownDescription: "Subgid mapping for containers. `0` maps to `DIRECT` (the GID is mapped directly). A positive integer sets an explicit target GID. Null means no mapping.",
+				MarkdownDescription: "Subgid mapping for containers. `0` maps to `DIRECT` (the GID is mapped directly). A positive integer sets an explicit target GID. Omit for no mapping.",
 				PlanModifiers:       []planmodifier.Int64{int64planmodifier.UseStateForUnknown()},
 			},
 			"builtin": schema.BoolAttribute{
@@ -121,7 +121,7 @@ func (r *GroupResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 			"users": schema.SetAttribute{
 				Computed:            true,
 				ElementType:         types.Int64Type,
-				MarkdownDescription: "API identifiers of local users who are members of this group. Read-only; manage membership via the `truenas_user` resource.",
+				MarkdownDescription: "Unix UIDs of local users who are members of this group.",
 			},
 		},
 	}
@@ -175,7 +175,7 @@ func (r *GroupResource) Create(ctx context.Context, req resource.CreateRequest, 
 		resp.Diagnostics.AddError("Error reading group after create", err.Error())
 		return
 	}
-	groupToModel(ctx, g, &plan, &resp.Diagnostics)
+	groupToModelWithUIDs(ctx, r.caller, g, &plan, &resp.Diagnostics)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -195,7 +195,7 @@ func (r *GroupResource) Read(ctx context.Context, req resource.ReadRequest, resp
 		resp.Diagnostics.AddError("Error reading group", err.Error())
 		return
 	}
-	groupToModel(ctx, g, &state, &resp.Diagnostics)
+	groupToModelWithUIDs(ctx, r.caller, g, &state, &resp.Diagnostics)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
@@ -240,7 +240,7 @@ func (r *GroupResource) Update(ctx context.Context, req resource.UpdateRequest, 
 		resp.Diagnostics.AddError("Error reading group after update", err.Error())
 		return
 	}
-	groupToModel(ctx, g, &plan, &resp.Diagnostics)
+	groupToModelWithUIDs(ctx, r.caller, g, &plan, &resp.Diagnostics)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -364,4 +364,19 @@ func groupToModel(ctx context.Context, g *truenas.Group, m *GroupResourceModel, 
 	}
 	m.Roles = stringSliceToSet(ctx, g.Roles, diags)
 	m.Users = int64SliceToSet(ctx, g.Users, diags)
+}
+
+// groupToModelWithUIDs is like groupToModel but resolves the group's user
+// internal IDs to Unix UIDs via a batched user.query call.
+func groupToModelWithUIDs(ctx context.Context, c client.Caller, g *truenas.Group, m *GroupResourceModel, diags *diag.Diagnostics) {
+	groupToModel(ctx, g, m, diags)
+	if diags.HasError() {
+		return
+	}
+	uids, err := truenas.ResolveUserUIDs(ctx, c, g.Users)
+	if err != nil {
+		diags.AddError("Error resolving user UIDs", err.Error())
+		return
+	}
+	m.Users = int64SliceToSet(ctx, uids, diags)
 }

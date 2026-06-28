@@ -129,8 +129,8 @@ func SharingSmbPresets(ctx context.Context, c client.Caller) (*SharingSmbPresets
 	return &result, nil
 }
 
-func SharingSmbQuery(ctx context.Context, c client.Caller) (json.RawMessage, error) {
-	raw, err := c.Call(ctx, "sharing.smb.query", []any{})
+func SharingSmbQuery(ctx context.Context, c client.Caller, filters ...QueryFilter) (json.RawMessage, error) {
+	raw, err := c.Call(ctx, "sharing.smb.query", []any{filtersToRaw(filters)})
 	if err != nil {
 		return nil, err
 	}

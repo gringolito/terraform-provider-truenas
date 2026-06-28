@@ -25,7 +25,7 @@ type WebSocketClient struct {
 
 const (
 	loginMaxRetries = 5
-	loginRetryDelay = 15 * time.Second
+	loginBaseDelay  = 2 * time.Second
 )
 
 func NewWebSocketClient(host, apiKey, username, password string, insecureSkipVerify bool) (*WebSocketClient, error) {
@@ -44,7 +44,8 @@ func NewWebSocketClient(host, apiKey, username, password string, insecureSkipVer
 		if !isTransientLoginError(loginErr) || attempt == loginMaxRetries-1 {
 			break
 		}
-		time.Sleep(loginRetryDelay)
+		// Exponential backoff: 2s, 4s, 8s, 16s
+		time.Sleep(loginBaseDelay * (1 << attempt))
 	}
 
 	c.Close()

@@ -28,11 +28,18 @@ func (e *APIError) Error() string {
 	return fmt.Sprintf("truenas api error (code %d): %s", e.Code, e.Message)
 }
 
+// JSON-RPC error codes returned by TrueNAS.
+const (
+	// ErrCodeInvalidParams is JSON-RPC "Invalid params" (-32602). TrueNAS reuses
+	// this code to signal resource-not-found in the newer RPC middleware.
+	ErrCodeInvalidParams = -32602
+)
+
 // IsNotFound reports whether the error indicates the resource does not exist.
 // TrueNAS encodes "not found" as errname="MatchNotFound" in older middleware
-// and as code=-32602 in newer RPC format.
+// and as code=ErrCodeInvalidParams in newer RPC format.
 func (e *APIError) IsNotFound() bool {
-	return e.ErrName == "MatchNotFound" || e.Code == -32602
+	return e.ErrName == "MatchNotFound" || e.Code == ErrCodeInvalidParams
 }
 
 type envelope struct {
