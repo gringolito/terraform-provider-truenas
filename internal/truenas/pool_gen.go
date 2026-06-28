@@ -9,10 +9,52 @@ import (
 	"github.com/gringolito/terraform-provider-truenas/internal/client"
 )
 
-type Pool struct {
+type PoolAttachmentsResult struct {
 	Type        string   `json:"type"`
 	Service     *string  `json:"service"`
 	Attachments []string `json:"attachments"`
+}
+
+type Pool struct {
+	Id              int64                       `json:"id"`
+	Name            string                      `json:"name"`
+	Guid            string                      `json:"guid"`
+	Status          string                      `json:"status"`
+	Path            string                      `json:"path"`
+	Scan            *map[string]json.RawMessage `json:"scan"`
+	Expand          *map[string]json.RawMessage `json:"expand"`
+	IsUpgraded      bool                        `json:"is_upgraded,omitempty"`
+	Healthy         bool                        `json:"healthy"`
+	Warning         bool                        `json:"warning"`
+	StatusCode      *string                     `json:"status_code"`
+	StatusDetail    *string                     `json:"status_detail"`
+	Size            *int64                      `json:"size"`
+	Allocated       *int64                      `json:"allocated"`
+	Free            *int64                      `json:"free"`
+	Freeing         *int64                      `json:"freeing"`
+	DedupTableSize  *int64                      `json:"dedup_table_size"`
+	DedupTableQuota *string                     `json:"dedup_table_quota"`
+	Fragmentation   *string                     `json:"fragmentation"`
+	SizeStr         *string                     `json:"size_str"`
+	AllocatedStr    *string                     `json:"allocated_str"`
+	FreeStr         *string                     `json:"free_str"`
+	FreeingStr      *string                     `json:"freeing_str"`
+	Autotrim        map[string]json.RawMessage  `json:"autotrim"`
+	Topology        *map[string]json.RawMessage `json:"topology"`
+}
+
+type PoolImportFindResult struct {
+	Name     string `json:"name"`
+	Guid     string `json:"guid"`
+	Status   string `json:"status"`
+	Hostname string `json:"hostname"`
+}
+
+type PoolProcessesResult struct {
+	Pid     int64   `json:"pid"`
+	Name    string  `json:"name"`
+	Service *string `json:"service"`
+	Cmdline *string `json:"cmdline"`
 }
 
 type PoolAttachArgs struct {
@@ -73,7 +115,7 @@ type PoolUpdateArgs struct {
 	DedupTableQuota       json.RawMessage            `json:"dedup_table_quota,omitempty"`
 	DedupTableQuotaValue  *int64                     `json:"dedup_table_quota_value,omitempty"`
 	Topology              map[string]json.RawMessage `json:"topology,omitempty"`
-	AllowDuplicateSerials bool                       `json:"allow_duplicate_serials,omitempty"`
+	AllowDuplicateSerials *bool                      `json:"allow_duplicate_serials"`
 	Autotrim              string                     `json:"autotrim,omitempty"`
 }
 
@@ -82,12 +124,12 @@ func PoolAttach(ctx context.Context, c client.Caller, id int64, args PoolAttachA
 	return err
 }
 
-func PoolAttachments(ctx context.Context, c client.Caller, id int64) ([]*Pool, error) {
+func PoolAttachments(ctx context.Context, c client.Caller, id int64) ([]*PoolAttachmentsResult, error) {
 	raw, err := c.Call(ctx, "pool.attachments", []any{id})
 	if err != nil {
 		return nil, err
 	}
-	var result []*Pool
+	var result []*PoolAttachmentsResult
 	if err := json.Unmarshal(raw, &result); err != nil {
 		return nil, err
 	}
@@ -167,12 +209,12 @@ func PoolGetInstance(ctx context.Context, c client.Caller, id int64) (*Pool, err
 	return &result, nil
 }
 
-func PoolImportFind(ctx context.Context, c client.Caller) ([]*Pool, error) {
+func PoolImportFind(ctx context.Context, c client.Caller) ([]*PoolImportFindResult, error) {
 	raw, err := c.Call(ctx, "pool.import_find", []any{})
 	if err != nil {
 		return nil, err
 	}
-	var result []*Pool
+	var result []*PoolImportFindResult
 	if err := json.Unmarshal(raw, &result); err != nil {
 		return nil, err
 	}
@@ -199,20 +241,20 @@ func PoolOnline(ctx context.Context, c client.Caller, id int64, args PoolOnlineA
 	return err
 }
 
-func PoolProcesses(ctx context.Context, c client.Caller, id int64) ([]*Pool, error) {
+func PoolProcesses(ctx context.Context, c client.Caller, id int64) ([]*PoolProcessesResult, error) {
 	raw, err := c.Call(ctx, "pool.processes", []any{id})
 	if err != nil {
 		return nil, err
 	}
-	var result []*Pool
+	var result []*PoolProcessesResult
 	if err := json.Unmarshal(raw, &result); err != nil {
 		return nil, err
 	}
 	return result, nil
 }
 
-func PoolQuery(ctx context.Context, c client.Caller) (json.RawMessage, error) {
-	raw, err := c.Call(ctx, "pool.query", []any{})
+func PoolQuery(ctx context.Context, c client.Caller, filters ...QueryFilter) (json.RawMessage, error) {
+	raw, err := c.Call(ctx, "pool.query", []any{filtersToRaw(filters)})
 	if err != nil {
 		return nil, err
 	}

@@ -24,6 +24,19 @@ type SharingSmb struct {
 	Options                     *json.RawMessage           `json:"options,omitempty"`
 }
 
+type SharingSmbGetaclResult struct {
+	ShareName string                       `json:"share_name"`
+	ShareAcl  []map[string]json.RawMessage `json:"share_acl,omitempty"`
+}
+
+type SharingSmbPresetsResult struct {
+}
+
+type SharingSmbSetaclResult struct {
+	ShareName string                       `json:"share_name"`
+	ShareAcl  []map[string]json.RawMessage `json:"share_acl,omitempty"`
+}
+
 type SharingSmbCreateArgs struct {
 	Purpose                     string                     `json:"purpose,omitempty"`
 	Name                        string                     `json:"name"`
@@ -54,11 +67,11 @@ type SharingSmbUpdateArgs struct {
 	Purpose                     string                     `json:"purpose,omitempty"`
 	Name                        string                     `json:"name,omitempty"`
 	Path                        json.RawMessage            `json:"path,omitempty"`
-	Enabled                     bool                       `json:"enabled,omitempty"`
+	Enabled                     *bool                      `json:"enabled"`
 	Comment                     string                     `json:"comment,omitempty"`
-	Readonly                    bool                       `json:"readonly,omitempty"`
-	Browsable                   bool                       `json:"browsable,omitempty"`
-	AccessBasedShareEnumeration bool                       `json:"access_based_share_enumeration,omitempty"`
+	Readonly                    *bool                      `json:"readonly"`
+	Browsable                   *bool                      `json:"browsable"`
+	AccessBasedShareEnumeration *bool                      `json:"access_based_share_enumeration"`
 	Audit                       map[string]json.RawMessage `json:"audit,omitempty"`
 	Options                     *json.RawMessage           `json:"options,omitempty"`
 }
@@ -92,32 +105,32 @@ func SharingSmbGetInstance(ctx context.Context, c client.Caller, id int64) (*Sha
 	return &result, nil
 }
 
-func SharingSmbGetacl(ctx context.Context, c client.Caller, args SharingSmbGetaclArgs) (*SharingSmb, error) {
+func SharingSmbGetacl(ctx context.Context, c client.Caller, args SharingSmbGetaclArgs) (*SharingSmbGetaclResult, error) {
 	raw, err := c.Call(ctx, "sharing.smb.getacl", []any{args})
 	if err != nil {
 		return nil, err
 	}
-	var result SharingSmb
+	var result SharingSmbGetaclResult
 	if err := json.Unmarshal(raw, &result); err != nil {
 		return nil, err
 	}
 	return &result, nil
 }
 
-func SharingSmbPresets(ctx context.Context, c client.Caller) (*SharingSmb, error) {
+func SharingSmbPresets(ctx context.Context, c client.Caller) (*SharingSmbPresetsResult, error) {
 	raw, err := c.Call(ctx, "sharing.smb.presets", []any{})
 	if err != nil {
 		return nil, err
 	}
-	var result SharingSmb
+	var result SharingSmbPresetsResult
 	if err := json.Unmarshal(raw, &result); err != nil {
 		return nil, err
 	}
 	return &result, nil
 }
 
-func SharingSmbQuery(ctx context.Context, c client.Caller) (json.RawMessage, error) {
-	raw, err := c.Call(ctx, "sharing.smb.query", []any{})
+func SharingSmbQuery(ctx context.Context, c client.Caller, filters ...QueryFilter) (json.RawMessage, error) {
+	raw, err := c.Call(ctx, "sharing.smb.query", []any{filtersToRaw(filters)})
 	if err != nil {
 		return nil, err
 	}
@@ -128,12 +141,12 @@ func SharingSmbQuery(ctx context.Context, c client.Caller) (json.RawMessage, err
 	return result, nil
 }
 
-func SharingSmbSetacl(ctx context.Context, c client.Caller, args SharingSmbSetaclArgs) (*SharingSmb, error) {
+func SharingSmbSetacl(ctx context.Context, c client.Caller, args SharingSmbSetaclArgs) (*SharingSmbSetaclResult, error) {
 	raw, err := c.Call(ctx, "sharing.smb.setacl", []any{args})
 	if err != nil {
 		return nil, err
 	}
-	var result SharingSmb
+	var result SharingSmbSetaclResult
 	if err := json.Unmarshal(raw, &result); err != nil {
 		return nil, err
 	}

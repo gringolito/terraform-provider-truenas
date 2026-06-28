@@ -9,18 +9,121 @@ import (
 	"github.com/gringolito/terraform-provider-truenas/internal/client"
 )
 
-type PoolDataset struct {
+type PoolDatasetAttachmentsResult struct {
 	Type        string   `json:"type"`
 	Service     *string  `json:"service"`
 	Attachments []string `json:"attachments"`
 }
 
-func PoolDatasetAttachments(ctx context.Context, c client.Caller) ([]*PoolDataset, error) {
+type PoolDatasetChecksumChoicesResult struct {
+	ON        string `json:"ON"`
+	FLETCHER2 string `json:"FLETCHER2"`
+	FLETCHER4 string `json:"FLETCHER4"`
+	SHA256    string `json:"SHA256"`
+	SHA512    string `json:"SHA512"`
+	SKEIN     string `json:"SKEIN"`
+	EDONR     string `json:"EDONR"`
+	BLAKE3    string `json:"BLAKE3"`
+}
+
+type PoolDatasetCompressionChoicesResult struct {
+}
+
+type PoolDataset struct {
+	Id                    string                     `json:"id,omitempty"`
+	Type                  string                     `json:"type,omitempty"`
+	Name                  string                     `json:"name,omitempty"`
+	Pool                  string                     `json:"pool,omitempty"`
+	Encrypted             bool                       `json:"encrypted,omitempty"`
+	EncryptionRoot        *string                    `json:"encryption_root,omitempty"`
+	KeyLoaded             *bool                      `json:"key_loaded,omitempty"`
+	Children              []json.RawMessage          `json:"children,omitempty"`
+	UserProperties        map[string]json.RawMessage `json:"user_properties,omitempty"`
+	Locked                bool                       `json:"locked,omitempty"`
+	Comments              map[string]json.RawMessage `json:"comments,omitempty"`
+	QuotaWarning          map[string]json.RawMessage `json:"quota_warning,omitempty"`
+	QuotaCritical         map[string]json.RawMessage `json:"quota_critical,omitempty"`
+	RefquotaWarning       map[string]json.RawMessage `json:"refquota_warning,omitempty"`
+	RefquotaCritical      map[string]json.RawMessage `json:"refquota_critical,omitempty"`
+	Managedby             map[string]json.RawMessage `json:"managedby,omitempty"`
+	Deduplication         map[string]json.RawMessage `json:"deduplication,omitempty"`
+	Aclmode               map[string]json.RawMessage `json:"aclmode,omitempty"`
+	Acltype               map[string]json.RawMessage `json:"acltype,omitempty"`
+	Xattr                 map[string]json.RawMessage `json:"xattr,omitempty"`
+	Atime                 map[string]json.RawMessage `json:"atime,omitempty"`
+	Casesensitivity       map[string]json.RawMessage `json:"casesensitivity,omitempty"`
+	Checksum              map[string]json.RawMessage `json:"checksum,omitempty"`
+	Exec                  map[string]json.RawMessage `json:"exec,omitempty"`
+	Sync                  map[string]json.RawMessage `json:"sync,omitempty"`
+	Compression           map[string]json.RawMessage `json:"compression,omitempty"`
+	Compressratio         map[string]json.RawMessage `json:"compressratio,omitempty"`
+	Origin                map[string]json.RawMessage `json:"origin,omitempty"`
+	Quota                 map[string]json.RawMessage `json:"quota,omitempty"`
+	Refquota              map[string]json.RawMessage `json:"refquota,omitempty"`
+	Reservation           map[string]json.RawMessage `json:"reservation,omitempty"`
+	Refreservation        map[string]json.RawMessage `json:"refreservation,omitempty"`
+	Copies                map[string]json.RawMessage `json:"copies,omitempty"`
+	Snapdir               map[string]json.RawMessage `json:"snapdir,omitempty"`
+	Readonly              map[string]json.RawMessage `json:"readonly,omitempty"`
+	Recordsize            map[string]json.RawMessage `json:"recordsize,omitempty"`
+	Sparse                map[string]json.RawMessage `json:"sparse,omitempty"`
+	Volsize               map[string]json.RawMessage `json:"volsize,omitempty"`
+	Volblocksize          map[string]json.RawMessage `json:"volblocksize,omitempty"`
+	KeyFormat             map[string]json.RawMessage `json:"key_format,omitempty"`
+	EncryptionAlgorithm   map[string]json.RawMessage `json:"encryption_algorithm,omitempty"`
+	Used                  map[string]json.RawMessage `json:"used,omitempty"`
+	Usedbychildren        map[string]json.RawMessage `json:"usedbychildren,omitempty"`
+	Usedbydataset         map[string]json.RawMessage `json:"usedbydataset,omitempty"`
+	Usedbyrefreservation  map[string]json.RawMessage `json:"usedbyrefreservation,omitempty"`
+	Usedbysnapshots       map[string]json.RawMessage `json:"usedbysnapshots,omitempty"`
+	Available             map[string]json.RawMessage `json:"available,omitempty"`
+	SpecialSmallBlockSize map[string]json.RawMessage `json:"special_small_block_size,omitempty"`
+	Pbkdf2iters           map[string]json.RawMessage `json:"pbkdf2iters,omitempty"`
+	Creation              map[string]json.RawMessage `json:"creation,omitempty"`
+	Snapdev               map[string]json.RawMessage `json:"snapdev,omitempty"`
+	Mountpoint            *string                    `json:"mountpoint,omitempty"`
+}
+
+type PoolDatasetDetailsResult struct {
+}
+
+type PoolDatasetEncryptionAlgorithmChoicesResult struct {
+	AES128CCM string `json:"AES-128-CCM"`
+	AES192CCM string `json:"AES-192-CCM"`
+	AES256CCM string `json:"AES-256-CCM"`
+	AES128GCM string `json:"AES-128-GCM"`
+	AES192GCM string `json:"AES-192-GCM"`
+	AES256GCM string `json:"AES-256-GCM"`
+}
+
+type PoolDatasetEncryptionSummaryResult struct {
+	Name                 string  `json:"name"`
+	KeyFormat            string  `json:"key_format"`
+	KeyPresentInDatabase bool    `json:"key_present_in_database"`
+	ValidKey             bool    `json:"valid_key"`
+	Locked               bool    `json:"locked"`
+	UnlockError          *string `json:"unlock_error"`
+	UnlockSuccessful     bool    `json:"unlock_successful"`
+}
+
+type PoolDatasetProcessesResult struct {
+	Pid     int64   `json:"pid"`
+	Name    string  `json:"name"`
+	Service *string `json:"service"`
+	Cmdline *string `json:"cmdline"`
+}
+
+type PoolDatasetUnlockResult struct {
+	Unlocked []string                   `json:"unlocked"`
+	Failed   map[string]json.RawMessage `json:"failed"`
+}
+
+func PoolDatasetAttachments(ctx context.Context, c client.Caller) ([]*PoolDatasetAttachmentsResult, error) {
 	raw, err := c.Call(ctx, "pool.dataset.attachments", []any{})
 	if err != nil {
 		return nil, err
 	}
-	var result []*PoolDataset
+	var result []*PoolDatasetAttachmentsResult
 	if err := json.Unmarshal(raw, &result); err != nil {
 		return nil, err
 	}
@@ -32,24 +135,24 @@ func PoolDatasetChangeKey(ctx context.Context, c client.Caller) error {
 	return err
 }
 
-func PoolDatasetChecksumChoices(ctx context.Context, c client.Caller) (*PoolDataset, error) {
+func PoolDatasetChecksumChoices(ctx context.Context, c client.Caller) (*PoolDatasetChecksumChoicesResult, error) {
 	raw, err := c.Call(ctx, "pool.dataset.checksum_choices", []any{})
 	if err != nil {
 		return nil, err
 	}
-	var result PoolDataset
+	var result PoolDatasetChecksumChoicesResult
 	if err := json.Unmarshal(raw, &result); err != nil {
 		return nil, err
 	}
 	return &result, nil
 }
 
-func PoolDatasetCompressionChoices(ctx context.Context, c client.Caller) (*PoolDataset, error) {
+func PoolDatasetCompressionChoices(ctx context.Context, c client.Caller) (*PoolDatasetCompressionChoicesResult, error) {
 	raw, err := c.Call(ctx, "pool.dataset.compression_choices", []any{})
 	if err != nil {
 		return nil, err
 	}
-	var result PoolDataset
+	var result PoolDatasetCompressionChoicesResult
 	if err := json.Unmarshal(raw, &result); err != nil {
 		return nil, err
 	}
@@ -85,36 +188,36 @@ func PoolDatasetDestroySnapshots(ctx context.Context, c client.Caller) (json.Raw
 	return result, nil
 }
 
-func PoolDatasetDetails(ctx context.Context, c client.Caller) ([]*PoolDataset, error) {
+func PoolDatasetDetails(ctx context.Context, c client.Caller) ([]*PoolDatasetDetailsResult, error) {
 	raw, err := c.Call(ctx, "pool.dataset.details", []any{})
 	if err != nil {
 		return nil, err
 	}
-	var result []*PoolDataset
+	var result []*PoolDatasetDetailsResult
 	if err := json.Unmarshal(raw, &result); err != nil {
 		return nil, err
 	}
 	return result, nil
 }
 
-func PoolDatasetEncryptionAlgorithmChoices(ctx context.Context, c client.Caller) (*PoolDataset, error) {
+func PoolDatasetEncryptionAlgorithmChoices(ctx context.Context, c client.Caller) (*PoolDatasetEncryptionAlgorithmChoicesResult, error) {
 	raw, err := c.Call(ctx, "pool.dataset.encryption_algorithm_choices", []any{})
 	if err != nil {
 		return nil, err
 	}
-	var result PoolDataset
+	var result PoolDatasetEncryptionAlgorithmChoicesResult
 	if err := json.Unmarshal(raw, &result); err != nil {
 		return nil, err
 	}
 	return &result, nil
 }
 
-func PoolDatasetEncryptionSummary(ctx context.Context, c client.Caller) ([]*PoolDataset, error) {
+func PoolDatasetEncryptionSummary(ctx context.Context, c client.Caller) ([]*PoolDatasetEncryptionSummaryResult, error) {
 	raw, err := c.Call(ctx, "pool.dataset.encryption_summary", []any{})
 	if err != nil {
 		return nil, err
 	}
-	var result []*PoolDataset
+	var result []*PoolDatasetEncryptionSummaryResult
 	if err := json.Unmarshal(raw, &result); err != nil {
 		return nil, err
 	}
@@ -177,12 +280,12 @@ func PoolDatasetLock(ctx context.Context, c client.Caller) error {
 	return err
 }
 
-func PoolDatasetProcesses(ctx context.Context, c client.Caller) ([]*PoolDataset, error) {
+func PoolDatasetProcesses(ctx context.Context, c client.Caller) ([]*PoolDatasetProcessesResult, error) {
 	raw, err := c.Call(ctx, "pool.dataset.processes", []any{})
 	if err != nil {
 		return nil, err
 	}
-	var result []*PoolDataset
+	var result []*PoolDatasetProcessesResult
 	if err := json.Unmarshal(raw, &result); err != nil {
 		return nil, err
 	}
@@ -194,8 +297,8 @@ func PoolDatasetPromote(ctx context.Context, c client.Caller) error {
 	return err
 }
 
-func PoolDatasetQuery(ctx context.Context, c client.Caller) (json.RawMessage, error) {
-	raw, err := c.Call(ctx, "pool.dataset.query", []any{})
+func PoolDatasetQuery(ctx context.Context, c client.Caller, filters ...QueryFilter) (json.RawMessage, error) {
+	raw, err := c.Call(ctx, "pool.dataset.query", []any{filtersToRaw(filters)})
 	if err != nil {
 		return nil, err
 	}
@@ -252,12 +355,12 @@ func PoolDatasetSnapshotCount(ctx context.Context, c client.Caller) (int64, erro
 	return result, nil
 }
 
-func PoolDatasetUnlock(ctx context.Context, c client.Caller) (*PoolDataset, error) {
+func PoolDatasetUnlock(ctx context.Context, c client.Caller) (*PoolDatasetUnlockResult, error) {
 	raw, err := c.Call(ctx, "pool.dataset.unlock", []any{})
 	if err != nil {
 		return nil, err
 	}
-	var result PoolDataset
+	var result PoolDatasetUnlockResult
 	if err := json.Unmarshal(raw, &result); err != nil {
 		return nil, err
 	}

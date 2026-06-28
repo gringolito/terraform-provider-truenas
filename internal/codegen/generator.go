@@ -146,6 +146,7 @@ func capitalize(s string) string {
 
 func snakeToPascal(s string) string {
 	s = strings.ReplaceAll(s, ".", "_")
+	s = strings.ReplaceAll(s, "-", "_") // kebab-case property names (e.g. AES-128-CCM)
 	parts := strings.Split(s, "_")
 	var b strings.Builder
 	for _, p := range parts {
@@ -288,10 +289,21 @@ func fieldOrder(s Schema) []string {
 
 // ---- method classification -------------------------------------------------
 
+// standardCRUDVerbs are the verbs that share the namespace entity struct as their return type.
+// Any other verb that returns an object gets its own "<FuncName>Result" struct.
+var standardCRUDVerbs = map[string]bool{
+	"create":       true,
+	"update":       true,
+	"get_instance": true,
+	"query":        true,
+}
+
 type methodSig struct {
 	method           string
 	funcName         string
 	hasIDArg         bool
+	hasQueryFilters  bool
+	isUpdateArgs     bool
 	argsStructName   string
 	argsSchema       *Schema
 	returnStructName string
@@ -312,9 +324,13 @@ func classifyMethod(method string, def MethodDef, prefix string) methodSig {
 	//            (the [id, patch] update pattern)
 	// Pattern 4: integer first, optional or absent second  →  (ctx, c, id int64)
 	//            (get_instance, delete — optional trailing options are dropped)
+	// Pattern 5: query verb with optional array first arg  →  (ctx, c, filters ...QueryFilter)
 	switch {
 	case len(def.Accepts) == 0:
 		// no args
+
+	case verb == "query" && len(def.Accepts) >= 1 && def.Accepts[0].Type == "array":
+		sig.hasQueryFilters = true
 
 	case len(def.Accepts) == 1 && isObjectLike(def.Accepts[0]):
 		a := def.Accepts[0]
@@ -330,6 +346,7 @@ func classifyMethod(method string, def MethodDef, prefix string) methodSig {
 			// Required object: the [id, patch] pattern.
 			sig.argsSchema = &second
 			sig.argsStructName = funcName + "Args"
+			sig.isUpdateArgs = verb == "update"
 		}
 		// Optional second arg (query options etc.) is dropped from the signature.
 
@@ -344,18 +361,27 @@ func classifyMethod(method string, def MethodDef, prefix string) methodSig {
 	ret := def.Returns[0]
 	switch {
 	case isObjectLike(ret):
-		// Use the namespace prefix as the struct name so that all CRUD methods
-		// in a namespace share one entity struct (User, Group, PoolDataset, …).
-		sig.returnStructName = prefix
+		// Standard CRUD verbs share the namespace entity struct (e.g. Group, User).
+		// Non-standard verbs get their own "<FuncName>Result" struct so they don't
+		// clobber the entity struct built from get_instance.
+		structName := prefix
+		if !standardCRUDVerbs[verb] {
+			structName = funcName + "Result"
+		}
+		sig.returnStructName = structName
 		sig.returnSchema = &ret
-		sig.returnType = "*" + prefix
+		sig.returnType = "*" + structName
 
 	case ret.Type == "array":
 		if len(ret.Items) > 0 && isObjectLike(ret.Items[0]) {
-			sig.returnStructName = prefix
+			structName := prefix
+			if !standardCRUDVerbs[verb] {
+				structName = funcName + "Result"
+			}
+			sig.returnStructName = structName
 			item := ret.Items[0]
 			sig.returnSchema = &item
-			sig.returnType = "[]*" + prefix
+			sig.returnType = "[]*" + structName
 		} else {
 			sig.returnType = "json.RawMessage"
 		}
@@ -424,14 +450,14 @@ func generateFile(ns string, methods []string, reg Registry) ([]byte, error) {
 	// Return structs first (shared across methods).
 	for _, s := range sigs {
 		if s.returnStructName != "" && !emitted[s.returnStructName] && s.returnSchema != nil {
-			emitStruct(&buf, s.returnStructName, *s.returnSchema)
+			emitStruct(&buf, s.returnStructName, *s.returnSchema, false)
 			emitted[s.returnStructName] = true
 		}
 	}
 	// Args structs.
 	for _, s := range sigs {
 		if s.argsStructName != "" && !emitted[s.argsStructName] && s.argsSchema != nil {
-			emitStruct(&buf, s.argsStructName, *s.argsSchema)
+			emitStruct(&buf, s.argsStructName, *s.argsSchema, s.isUpdateArgs)
 			emitted[s.argsStructName] = true
 		}
 	}
@@ -457,7 +483,7 @@ func structNeedsJSON(s Schema) bool {
 	return false
 }
 
-func emitStruct(buf *bytes.Buffer, name string, s Schema) {
+func emitStruct(buf *bytes.Buffer, name string, s Schema, updateArgs bool) {
 	s = resolveAllOf(s)
 
 	buf.WriteString("type " + name + " struct {\n")
@@ -469,9 +495,19 @@ func emitStruct(buf *bytes.Buffer, name string, s Schema) {
 		goName := snakeToPascal(fieldName)
 		goType := schemaToGoType(fieldSchema)
 		tag := fieldName
-		if !isFieldRequired(s, fieldName, fieldSchema) {
+		required := isFieldRequired(s, fieldName, fieldSchema)
+
+		switch {
+		case updateArgs && goType == "bool":
+			// *bool with no omitempty: nil pointer means "not set", false means "set to false".
+			goType = "*bool"
+		case updateArgs && strings.HasPrefix(goType, "[]"):
+			// Slice fields in update args must not have omitempty so an empty
+			// slice (e.g. sudo_commands: []) is sent rather than omitted.
+		case !required:
 			tag += ",omitempty"
 		}
+
 		fmt.Fprintf(buf, "\t%s %s `json:\"%s\"`\n", goName, goType, tag)
 	}
 	buf.WriteString("}\n\n")
@@ -498,6 +534,9 @@ func emitFunc(buf *bytes.Buffer, s methodSig) {
 	buf.WriteString("func " + s.funcName + "(ctx context.Context, c client.Caller")
 	if s.hasIDArg {
 		buf.WriteString(", id int64")
+	}
+	if s.hasQueryFilters {
+		buf.WriteString(", filters ...QueryFilter")
 	}
 	if s.argsStructName != "" {
 		buf.WriteString(", args " + s.argsStructName)
@@ -535,6 +574,8 @@ func emitFunc(buf *bytes.Buffer, s methodSig) {
 
 func buildParams(s methodSig) string {
 	switch {
+	case s.hasQueryFilters:
+		return "[]any{filtersToRaw(filters)}"
 	case s.hasIDArg && s.argsStructName != "":
 		return "[]any{id, args}"
 	case s.hasIDArg:

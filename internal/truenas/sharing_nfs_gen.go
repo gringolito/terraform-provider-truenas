@@ -45,18 +45,18 @@ type SharingNfsCreateArgs struct {
 
 type SharingNfsUpdateArgs struct {
 	Path            string   `json:"path,omitempty"`
-	Aliases         []string `json:"aliases,omitempty"`
+	Aliases         []string `json:"aliases"`
 	Comment         string   `json:"comment,omitempty"`
-	Networks        []string `json:"networks,omitempty"`
-	Hosts           []string `json:"hosts,omitempty"`
-	Ro              bool     `json:"ro,omitempty"`
+	Networks        []string `json:"networks"`
+	Hosts           []string `json:"hosts"`
+	Ro              *bool    `json:"ro"`
 	MaprootUser     *string  `json:"maproot_user,omitempty"`
 	MaprootGroup    *string  `json:"maproot_group,omitempty"`
 	MapallUser      *string  `json:"mapall_user,omitempty"`
 	MapallGroup     *string  `json:"mapall_group,omitempty"`
-	Security        []string `json:"security,omitempty"`
-	Enabled         bool     `json:"enabled,omitempty"`
-	ExposeSnapshots bool     `json:"expose_snapshots,omitempty"`
+	Security        []string `json:"security"`
+	Enabled         *bool    `json:"enabled"`
+	ExposeSnapshots *bool    `json:"expose_snapshots"`
 }
 
 func SharingNfsCreate(ctx context.Context, c client.Caller, args SharingNfsCreateArgs) (*SharingNfs, error) {
@@ -88,8 +88,8 @@ func SharingNfsGetInstance(ctx context.Context, c client.Caller, id int64) (*Sha
 	return &result, nil
 }
 
-func SharingNfsQuery(ctx context.Context, c client.Caller) (json.RawMessage, error) {
-	raw, err := c.Call(ctx, "sharing.nfs.query", []any{})
+func SharingNfsQuery(ctx context.Context, c client.Caller, filters ...QueryFilter) (json.RawMessage, error) {
+	raw, err := c.Call(ctx, "sharing.nfs.query", []any{filtersToRaw(filters)})
 	if err != nil {
 		return nil, err
 	}
