@@ -43,6 +43,7 @@ data "truenas_user" "by_username" {
 - `home_create` (Boolean) Whether TrueNAS creates the home directory if missing.
 - `home_mode` (String) Permissions of the home directory in octal notation.
 - `immutable` (Boolean) Whether this user entry can be modified.
+- `last_password_change` (String) Timestamp of the last password change, in RFC 3339 format. Null if the account has never had a password set.
 - `local` (Boolean) Whether this user is local to the TrueNAS server.
 - `locked` (Boolean) Whether the account is locked.
 - `password_disabled` (Boolean) Whether the account has no password.

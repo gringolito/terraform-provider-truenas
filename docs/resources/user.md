@@ -38,7 +38,7 @@ resource "truenas_user" "example" {
 ### Required
 
 - `full_name` (String) Full display name of the user.
-- `group` (Number) Unix GID of the primary group. Use `truenas_group.mygroup.id` to reference a managed group.
+- `group` (Number) Unix GID of the primary group.
 - `username` (String) Login name of the user.
 
 ### Optional
@@ -50,7 +50,7 @@ resource "truenas_user" "example" {
 - `home_create` (Boolean) When `true`, TrueNAS creates the home directory if it does not exist.
 - `home_mode` (String) Permissions of the home directory in octal notation (e.g. `"700"`).
 - `locked` (Boolean) When `true`, the account is locked and cannot log in.
-- `password` (String, Sensitive, [Write-only](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments)) Account password. Write-only — never stored in state. Mutually exclusive with `password_disabled = true`. Bump `password_wo_version` to trigger a password update.
+- `password` (String, Sensitive, [Write-only](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments)) Account password. Mutually exclusive with `password_disabled = true`. Bump `password_wo_version` to trigger a password update.
 - `password_disabled` (Boolean) When `true`, the account has no password and cannot log in with a password. Mutually exclusive with `password`.
 - `password_wo_version` (Number) Monotonically increasing version counter. Increment this to trigger a password update when `password` changes. The provider sends the new password only when this value changes.
 - `shell` (String) Login shell path.
@@ -65,9 +65,10 @@ resource "truenas_user" "example" {
 ### Read-Only
 
 - `builtin` (Boolean) Whether this is an internal system user.
-- `groups` (Set of Number) Unix GIDs of supplementary groups. Read-only — managed by `truenas_user_group_membership`.
-- `id` (Number) Unix UID of the user. Used as the import ID.
+- `groups` (Set of Number) Unix GIDs of supplementary groups.
+- `id` (Number) Unix UID of the user.
 - `immutable` (Boolean) Whether this user entry can be modified.
+- `last_password_change` (String) Timestamp of the last password change, in RFC 3339 format. Null if the account has never had a password set.
 - `local` (Boolean) Whether this user is local to the TrueNAS server.
 - `roles` (Set of String) TrueNAS roles assigned to this user.
 - `sid` (String) Security Identifier (SID) for SMB-enabled users. Null when SMB is disabled.

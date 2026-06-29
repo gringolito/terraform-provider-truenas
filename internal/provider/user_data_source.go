@@ -2,7 +2,6 @@ package provider
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
@@ -49,6 +48,7 @@ type UserDataSourceModel struct {
 	Sid                     types.String `tfsdk:"sid"`
 	Roles                   types.Set    `tfsdk:"roles"`
 	TwofactorAuthConfigured types.Bool   `tfsdk:"twofactor_auth_configured"`
+	LastPasswordChange      types.String `tfsdk:"last_password_change"`
 }
 
 func (d *UserDataSource) Metadata(_ context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
@@ -161,6 +161,10 @@ func (d *UserDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, r
 				Computed:            true,
 				MarkdownDescription: "Whether two-factor authentication is configured for this user.",
 			},
+			"last_password_change": schema.StringAttribute{
+				Computed:            true,
+				MarkdownDescription: "Timestamp of the last password change, in RFC 3339 format. Null if the account has never had a password set.",
+			},
 		},
 	}
 }
@@ -200,23 +204,12 @@ func (d *UserDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 	var err error
 
 	if hasID {
-		raw, qErr := truenas.UserQuery(ctx, d.caller, truenas.QueryFilter{Field: "uid", Op: "=", Value: config.Id.ValueInt64()})
-		if qErr != nil {
-			resp.Diagnostics.AddError("Error querying user", qErr.Error())
+		apiID, idErr := truenas.ResolveUserIDByUID(ctx, d.caller, config.Id.ValueInt64())
+		if idErr != nil {
+			resp.Diagnostics.AddError("Error resolving user", idErr.Error())
 			return
 		}
-		var users []struct {
-			Id int64 `json:"id"`
-		}
-		if jsonErr := json.Unmarshal(raw, &users); jsonErr != nil {
-			resp.Diagnostics.AddError("Error parsing user query", jsonErr.Error())
-			return
-		}
-		if len(users) == 0 {
-			resp.Diagnostics.AddError("User not found", fmt.Sprintf("No user with UID %d", config.Id.ValueInt64()))
-			return
-		}
-		u, err = truenas.UserGetInstanceSafe(ctx, d.caller, users[0].Id)
+		u, err = truenas.UserGetInstance(ctx, d.caller, apiID)
 	} else {
 		u, err = truenas.UserGetByUsername(ctx, d.caller, config.Username.ValueString())
 	}
@@ -263,4 +256,5 @@ func userToDataSourceModel(ctx context.Context, c client.Caller, u *truenas.User
 	m.Sid = rm.Sid
 	m.Roles = rm.Roles
 	m.TwofactorAuthConfigured = rm.TwofactorAuthConfigured
+	m.LastPasswordChange = rm.LastPasswordChange
 }

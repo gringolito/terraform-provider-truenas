@@ -25,36 +25,56 @@ func GroupGetByName(ctx context.Context, c client.Caller, name string) (*Group, 
 	return &results[0], nil
 }
 
-// ResolveUserUIDs converts a slice of internal API user IDs to Unix UIDs via a
-// single batched user.query call. Returns an empty slice when userIDs is empty.
-func ResolveUserUIDs(ctx context.Context, c client.Caller, userIDs []int64) ([]int64, error) {
-	if len(userIDs) == 0 {
+// ResolveGroupGIDs converts a slice of internal group API IDs to Unix GIDs via a
+// single batched group.query call. Returns an empty slice when groupIDs is empty.
+func ResolveGroupGIDs(ctx context.Context, c client.Caller, groupIDs []int64) ([]int64, error) {
+	if len(groupIDs) == 0 {
 		return []int64{}, nil
 	}
-	ids := make([]any, len(userIDs))
-	for i, id := range userIDs {
+	ids := make([]any, len(groupIDs))
+	for i, id := range groupIDs {
 		ids[i] = id
 	}
-	raw, err := UserQuery(ctx, c, QueryFilter{Field: "id", Op: "in", Value: ids})
+	raw, err := GroupQuery(ctx, c, QueryFilter{Field: "id", Op: "in", Value: ids})
 	if err != nil {
-		return nil, fmt.Errorf("querying users: %w", err)
+		return nil, fmt.Errorf("querying groups: %w", err)
 	}
-	var users []struct {
+	var groups []struct {
 		Id  int64 `json:"id"`
-		Uid int64 `json:"uid"`
+		Gid int64 `json:"gid"`
 	}
-	if err := json.Unmarshal(raw, &users); err != nil {
-		return nil, fmt.Errorf("parsing user query result: %w", err)
+	if err := json.Unmarshal(raw, &groups); err != nil {
+		return nil, fmt.Errorf("parsing group query result: %w", err)
 	}
-	uidByID := make(map[int64]int64, len(users))
-	for _, u := range users {
-		uidByID[u.Id] = u.Uid
+	gidByID := make(map[int64]int64, len(groups))
+	for _, g := range groups {
+		gidByID[g.Id] = g.Gid
 	}
-	uids := make([]int64, 0, len(userIDs))
-	for _, id := range userIDs {
-		if uid, ok := uidByID[id]; ok {
-			uids = append(uids, uid)
+	gids := make([]int64, 0, len(groupIDs))
+	for _, id := range groupIDs {
+		if gid, ok := gidByID[id]; ok {
+			gids = append(gids, gid)
 		}
 	}
-	return uids, nil
+	return gids, nil
+}
+
+// ResolveGroupIDByGID resolves a Unix GID to the internal group API ID via group.query.
+// Returns an error if no group with that GID exists.
+func ResolveGroupIDByGID(ctx context.Context, c client.Caller, gid int64) (int64, error) {
+	raw, err := GroupQuery(ctx, c, QueryFilter{Field: "gid", Op: "=", Value: gid})
+	if err != nil {
+		return 0, fmt.Errorf("querying group by GID %d: %w", gid, err)
+	}
+	var groups []struct {
+		Id  int64 `json:"id"`
+		Gid int64 `json:"gid"`
+	}
+	if err := json.Unmarshal(raw, &groups); err != nil {
+		return 0, fmt.Errorf("parsing group query result: %w", err)
+	}
+	if len(groups) == 0 {
+		return 0, fmt.Errorf("no group with GID %d found", gid)
+	}
+	return groups[0].Id, nil
 }

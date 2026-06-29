@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -62,6 +63,7 @@ type UserResourceModel struct {
 	Sid                     types.String `tfsdk:"sid"`
 	Roles                   types.Set    `tfsdk:"roles"`
 	TwofactorAuthConfigured types.Bool   `tfsdk:"twofactor_auth_configured"`
+	LastPasswordChange      types.String `tfsdk:"last_password_change"`
 }
 
 // privateStateKV matches the GetKey/SetKey methods on *privatestate.ProviderData
@@ -114,7 +116,7 @@ func (r *UserResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 		Attributes: map[string]schema.Attribute{
 			"id": schema.Int64Attribute{
 				Computed:            true,
-				MarkdownDescription: "Unix UID of the user. Used as the import ID.",
+				MarkdownDescription: "Unix UID of the user.",
 				PlanModifiers:       []planmodifier.Int64{int64planmodifier.UseStateForUnknown()},
 			},
 			"uid": schema.Int64Attribute{
@@ -133,19 +135,19 @@ func (r *UserResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 			},
 			"group": schema.Int64Attribute{
 				Required:            true,
-				MarkdownDescription: "Unix GID of the primary group. Use `truenas_group.mygroup.id` to reference a managed group.",
+				MarkdownDescription: "Unix GID of the primary group.",
 			},
 			"groups": schema.SetAttribute{
 				Computed:            true,
 				ElementType:         types.Int64Type,
-				MarkdownDescription: "Unix GIDs of supplementary groups. Read-only — managed by `truenas_user_group_membership`.",
+				MarkdownDescription: "Unix GIDs of supplementary groups.",
 				PlanModifiers:       []planmodifier.Set{setplanmodifier.UseStateForUnknown()},
 			},
 			"password": schema.StringAttribute{
 				Optional:            true,
 				Sensitive:           true,
 				WriteOnly:           true,
-				MarkdownDescription: "Account password. Write-only — never stored in state. Mutually exclusive with `password_disabled = true`. Bump `password_wo_version` to trigger a password update.",
+				MarkdownDescription: "Account password. Mutually exclusive with `password_disabled = true`. Bump `password_wo_version` to trigger a password update.",
 			},
 			"password_wo_version": schema.Int64Attribute{
 				Optional:            true,
@@ -256,6 +258,10 @@ func (r *UserResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				Computed:            true,
 				MarkdownDescription: "Whether two-factor authentication is configured for this user.",
 			},
+			"last_password_change": schema.StringAttribute{
+				Computed:            true,
+				MarkdownDescription: "Timestamp of the last password change, in RFC 3339 format. Null if the account has never had a password set.",
+			},
 		},
 	}
 }
@@ -310,7 +316,7 @@ func (v *smbPasswordDisabledValidator) ValidateResource(ctx context.Context, req
 		resp.Diagnostics.AddAttributeError(
 			path.Root("smb"),
 			"Conflicting attributes",
-			"`smb = true` cannot be used with `password_disabled = true`. TrueNAS requires SMB authentication to be disabled when password login is disabled.",
+			"`smb = true` cannot be used with `password_disabled = true`. TrueNAS requires password login to be enabled when SMB authentication is enabled.",
 		)
 	}
 }
@@ -422,7 +428,7 @@ func (r *UserResource) Create(ctx context.Context, req resource.CreateRequest, r
 		}
 	}
 
-	u, err := truenas.UserCreateSafe(ctx, r.caller, args)
+	u, err := truenas.UserCreate(ctx, r.caller, args)
 	if err != nil {
 		resp.Diagnostics.AddError("Error creating user", err.Error())
 		return
@@ -433,7 +439,7 @@ func (r *UserResource) Create(ctx context.Context, req resource.CreateRequest, r
 		return
 	}
 
-	fresh, err := truenas.UserGetInstanceSafe(ctx, r.caller, u.Id)
+	fresh, err := truenas.UserGetInstance(ctx, r.caller, u.Id)
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading user after create", err.Error())
 		return
@@ -456,7 +462,7 @@ func (r *UserResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 		return
 	}
 
-	u, err := truenas.UserGetInstanceSafe(ctx, r.caller, apiID)
+	u, err := truenas.UserGetInstance(ctx, r.caller, apiID)
 	if err != nil {
 		if isNotFoundErr(err) {
 			resp.State.RemoveResource(ctx)
@@ -560,7 +566,7 @@ func (r *UserResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		}
 	}
 
-	_, err = truenas.UserUpdateSafe(ctx, r.caller, apiID, args)
+	_, err = truenas.UserUpdate(ctx, r.caller, apiID, args)
 	if err != nil {
 		resp.Diagnostics.AddError("Error updating user", err.Error())
 		return
@@ -571,7 +577,7 @@ func (r *UserResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		return
 	}
 
-	fresh, err := truenas.UserGetInstanceSafe(ctx, r.caller, apiID)
+	fresh, err := truenas.UserGetInstance(ctx, r.caller, apiID)
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading user after update", err.Error())
 		return
@@ -603,25 +609,13 @@ func (r *UserResource) ImportState(ctx context.Context, req resource.ImportState
 		return
 	}
 
-	raw, err := truenas.UserQuery(ctx, r.caller, truenas.QueryFilter{Field: "uid", Op: "=", Value: uid})
+	apiID, err := truenas.ResolveUserIDByUID(ctx, r.caller, uid)
 	if err != nil {
-		resp.Diagnostics.AddError("Error querying user by UID", err.Error())
-		return
-	}
-	var users []struct {
-		Id  int64 `json:"id"`
-		Uid int64 `json:"uid"`
-	}
-	if err := json.Unmarshal(raw, &users); err != nil {
-		resp.Diagnostics.AddError("Error parsing user query result", err.Error())
-		return
-	}
-	if len(users) == 0 {
-		resp.Diagnostics.AddError("User not found", fmt.Sprintf("No user with UID %d", uid))
+		resp.Diagnostics.AddError("Error resolving user by UID", err.Error())
 		return
 	}
 
-	resp.Diagnostics.Append(writeUserPrivateAPIID(ctx, resp.Private, users[0].Id)...)
+	resp.Diagnostics.Append(writeUserPrivateAPIID(ctx, resp.Private, apiID)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -682,6 +676,12 @@ func userToModel(ctx context.Context, c client.Caller, u *truenas.User, m *UserR
 	m.Local = types.BoolValue(u.Local)
 	m.TwofactorAuthConfigured = types.BoolValue(u.TwofactorAuthConfigured)
 	m.Roles = stringSliceToSet(ctx, u.Roles, diags)
+
+	if u.LastPasswordChange != nil && !u.LastPasswordChange.IsZero() {
+		m.LastPasswordChange = types.StringValue(u.LastPasswordChange.Format(time.RFC3339))
+	} else {
+		m.LastPasswordChange = types.StringNull()
+	}
 
 	if u.Sid != nil {
 		m.Sid = types.StringValue(*u.Sid)

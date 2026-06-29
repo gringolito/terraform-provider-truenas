@@ -34,6 +34,7 @@ type MethodDef struct {
 // same meaning; both forms are checked when deciding whether to emit omitempty.
 type Schema struct {
 	Type         string            `json:"type"`
+	Format       string            `json:"format"`
 	Title        string            `json:"title"`
 	Description  string            `json:"description"`
 	Properties   map[string]Schema `json:"properties"`
@@ -218,6 +219,12 @@ func schemaToGoType(s Schema) string {
 	case "boolean":
 		return "bool"
 	case "string":
+		// TrueNAS serializes datetimes over the wire as a Mongo-style
+		// {"$date": <epoch_ms>} object, not an ISO string, so format:date-time
+		// fields decode into the DateTime type (see datetime.go), not string.
+		if s.Format == "date-time" {
+			return "DateTime"
+		}
 		return "string"
 	case "array":
 		if len(s.Items) > 0 {

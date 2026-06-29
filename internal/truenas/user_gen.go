@@ -34,7 +34,7 @@ type User struct {
 	Immutable               bool                       `json:"immutable"`
 	TwofactorAuthConfigured bool                       `json:"twofactor_auth_configured"`
 	Sid                     *string                    `json:"sid"`
-	LastPasswordChange      *string                    `json:"last_password_change"`
+	LastPasswordChange      *DateTime                  `json:"last_password_change"`
 	PasswordAge             *int64                     `json:"password_age"`
 	PasswordHistory         *[]json.RawMessage         `json:"password_history"`
 	PasswordChangeRequired  bool                       `json:"password_change_required"`
@@ -81,7 +81,7 @@ type UserRenew2faSecretResult struct {
 	Immutable               bool                       `json:"immutable"`
 	TwofactorAuthConfigured bool                       `json:"twofactor_auth_configured"`
 	Sid                     *string                    `json:"sid"`
-	LastPasswordChange      *string                    `json:"last_password_change"`
+	LastPasswordChange      *DateTime                  `json:"last_password_change"`
 	PasswordAge             *int64                     `json:"password_age"`
 	PasswordHistory         *[]json.RawMessage         `json:"password_history"`
 	PasswordChangeRequired  bool                       `json:"password_change_required"`
