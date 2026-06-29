@@ -40,7 +40,7 @@ type GroupCreateArgs struct {
 	Name                 string          `json:"name"`
 	SudoCommands         []string        `json:"sudo_commands,omitempty"`
 	SudoCommandsNopasswd []string        `json:"sudo_commands_nopasswd,omitempty"`
-	Smb                  bool            `json:"smb,omitempty"`
+	Smb                  *bool           `json:"smb,omitempty"`
 	UsernsIdmap          json.RawMessage `json:"userns_idmap,omitempty"`
 	Users                []int64         `json:"users,omitempty"`
 }
@@ -48,16 +48,16 @@ type GroupCreateArgs struct {
 type GroupGetGroupObjArgs struct {
 	Groupname *string `json:"groupname,omitempty"`
 	Gid       *int64  `json:"gid,omitempty"`
-	SidInfo   bool    `json:"sid_info,omitempty"`
+	SidInfo   *bool   `json:"sid_info,omitempty"`
 }
 
 type GroupUpdateArgs struct {
 	Name                 string          `json:"name,omitempty"`
-	SudoCommands         []string        `json:"sudo_commands"`
-	SudoCommandsNopasswd []string        `json:"sudo_commands_nopasswd"`
-	Smb                  *bool           `json:"smb"`
+	SudoCommands         *[]string       `json:"sudo_commands,omitempty"`
+	SudoCommandsNopasswd *[]string       `json:"sudo_commands_nopasswd,omitempty"`
+	Smb                  *bool           `json:"smb,omitempty"`
 	UsernsIdmap          json.RawMessage `json:"userns_idmap,omitempty"`
-	Users                []int64         `json:"users"`
+	Users                *[]int64        `json:"users,omitempty"`
 }
 
 func GroupCreate(ctx context.Context, c client.Caller, args GroupCreateArgs) (int64, error) {

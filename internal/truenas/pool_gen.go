@@ -60,19 +60,19 @@ type PoolProcessesResult struct {
 type PoolAttachArgs struct {
 	TargetVdev            string `json:"target_vdev"`
 	NewDisk               string `json:"new_disk"`
-	AllowDuplicateSerials bool   `json:"allow_duplicate_serials,omitempty"`
+	AllowDuplicateSerials *bool  `json:"allow_duplicate_serials,omitempty"`
 }
 
 type PoolCreateArgs struct {
 	Name                  string                     `json:"name"`
-	Encryption            bool                       `json:"encryption,omitempty"`
+	Encryption            *bool                      `json:"encryption,omitempty"`
 	DedupTableQuota       json.RawMessage            `json:"dedup_table_quota,omitempty"`
 	DedupTableQuotaValue  *int64                     `json:"dedup_table_quota_value,omitempty"`
 	Deduplication         json.RawMessage            `json:"deduplication,omitempty"`
 	Checksum              json.RawMessage            `json:"checksum,omitempty"`
 	EncryptionOptions     map[string]json.RawMessage `json:"encryption_options,omitempty"`
 	Topology              map[string]json.RawMessage `json:"topology"`
-	AllowDuplicateSerials bool                       `json:"allow_duplicate_serials,omitempty"`
+	AllowDuplicateSerials *bool                      `json:"allow_duplicate_serials,omitempty"`
 }
 
 type PoolDdtPruneArgs struct {
@@ -83,7 +83,7 @@ type PoolDdtPruneArgs struct {
 
 type PoolDetachArgs struct {
 	Label string `json:"label"`
-	Wipe  bool   `json:"wipe,omitempty"`
+	Wipe  *bool  `json:"wipe,omitempty"`
 }
 
 type PoolImportPoolArgs struct {
@@ -106,16 +106,16 @@ type PoolRemoveArgs struct {
 type PoolReplaceArgs struct {
 	Label               string `json:"label"`
 	Disk                string `json:"disk"`
-	Force               bool   `json:"force,omitempty"`
-	PreserveSettings    bool   `json:"preserve_settings,omitempty"`
-	PreserveDescription bool   `json:"preserve_description,omitempty"`
+	Force               *bool  `json:"force,omitempty"`
+	PreserveSettings    *bool  `json:"preserve_settings,omitempty"`
+	PreserveDescription *bool  `json:"preserve_description,omitempty"`
 }
 
 type PoolUpdateArgs struct {
 	DedupTableQuota       json.RawMessage            `json:"dedup_table_quota,omitempty"`
 	DedupTableQuotaValue  *int64                     `json:"dedup_table_quota_value,omitempty"`
 	Topology              map[string]json.RawMessage `json:"topology,omitempty"`
-	AllowDuplicateSerials *bool                      `json:"allow_duplicate_serials"`
+	AllowDuplicateSerials *bool                      `json:"allow_duplicate_serials,omitempty"`
 	Autotrim              string                     `json:"autotrim,omitempty"`
 }
 

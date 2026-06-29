@@ -129,13 +129,29 @@
             "type": "string",
             "_name_": "full_name",
             "_required_": true
+          },
+          "last_password_change": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The date of the last password change for local user accounts.",
+            "title": "last_password_change",
+            "_name_": "last_password_change",
+            "_required_": true
           }
         },
         "required": [
           "id",
           "uid",
           "username",
-          "full_name"
+          "full_name",
+          "last_password_change"
         ],
         "title": "result",
         "type": "object",
@@ -146,7 +162,8 @@
           "id",
           "uid",
           "username",
-          "full_name"
+          "full_name",
+          "last_password_change"
         ]
       }
     ]

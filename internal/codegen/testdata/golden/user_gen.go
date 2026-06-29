@@ -10,10 +10,11 @@ import (
 )
 
 type User struct {
-	Id       int64           `json:"id"`
-	Uid      int64           `json:"uid"`
-	Username json.RawMessage `json:"username"`
-	FullName string          `json:"full_name"`
+	Id                 int64           `json:"id"`
+	Uid                int64           `json:"uid"`
+	Username           json.RawMessage `json:"username"`
+	FullName           string          `json:"full_name"`
+	LastPasswordChange *DateTime       `json:"last_password_change"`
 }
 
 type UserCreateArgs struct {

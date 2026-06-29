@@ -82,10 +82,11 @@ func TestGroupUpdate(t *testing.T) {
 		},
 	}
 	smb := true
+	sudoCmds := []string{}
 	_, err := truenas.GroupUpdate(context.Background(), fake, 42, truenas.GroupUpdateArgs{
 		Name:         "renamed",
 		Smb:          &smb,
-		SudoCommands: []string{},
+		SudoCommands: &sudoCmds,
 	})
 	if err != nil {
 		t.Fatalf("GroupUpdate: %v", err)
@@ -136,33 +137,61 @@ func TestGroupGetByName_NotFound(t *testing.T) {
 	}
 }
 
-func TestResolveUserUIDs(t *testing.T) {
-	payload := `[{"id":10,"uid":1001},{"id":20,"uid":1002}]`
+func TestResolveGroupGIDs(t *testing.T) {
+	payload := `[{"id":40,"gid":2000},{"id":120,"gid":3000}]`
 	fake := &clienttest.FakeCaller{
 		Responses: map[string]json.RawMessage{
-			"user.query": json.RawMessage(payload),
+			"group.query": json.RawMessage(payload),
 		},
 	}
-	uids, err := truenas.ResolveUserUIDs(context.Background(), fake, []int64{10, 20})
+	gids, err := truenas.ResolveGroupGIDs(context.Background(), fake, []int64{40, 120})
 	if err != nil {
-		t.Fatalf("ResolveUserUIDs: %v", err)
+		t.Fatalf("ResolveGroupGIDs: %v", err)
 	}
-	if len(uids) != 2 {
-		t.Fatalf("len: got %d, want 2", len(uids))
+	if len(gids) != 2 {
+		t.Fatalf("len: got %d, want 2", len(gids))
 	}
-	if uids[0] != 1001 || uids[1] != 1002 {
-		t.Errorf("uids: got %v, want [1001 1002]", uids)
+	if gids[0] != 2000 || gids[1] != 3000 {
+		t.Errorf("gids: got %v, want [2000 3000]", gids)
 	}
 }
 
-func TestResolveUserUIDs_Empty(t *testing.T) {
+func TestResolveGroupGIDs_Empty(t *testing.T) {
 	fake := &clienttest.FakeCaller{}
-	uids, err := truenas.ResolveUserUIDs(context.Background(), fake, nil)
+	gids, err := truenas.ResolveGroupGIDs(context.Background(), fake, nil)
 	if err != nil {
-		t.Fatalf("ResolveUserUIDs: %v", err)
+		t.Fatalf("ResolveGroupGIDs: %v", err)
 	}
-	if len(uids) != 0 {
-		t.Errorf("expected empty, got %v", uids)
+	if len(gids) != 0 {
+		t.Errorf("expected empty, got %v", gids)
+	}
+}
+
+func TestResolveGroupIDByGID(t *testing.T) {
+	payload := `[{"id":43,"gid":950}]`
+	fake := &clienttest.FakeCaller{
+		Responses: map[string]json.RawMessage{
+			"group.query": json.RawMessage(payload),
+		},
+	}
+	id, err := truenas.ResolveGroupIDByGID(context.Background(), fake, 950)
+	if err != nil {
+		t.Fatalf("ResolveGroupIDByGID: %v", err)
+	}
+	if id != 43 {
+		t.Errorf("id: got %d, want 43", id)
+	}
+}
+
+func TestResolveGroupIDByGID_NotFound(t *testing.T) {
+	fake := &clienttest.FakeCaller{
+		Responses: map[string]json.RawMessage{
+			"group.query": json.RawMessage(`[]`),
+		},
+	}
+	_, err := truenas.ResolveGroupIDByGID(context.Background(), fake, 9999)
+	if err == nil {
+		t.Fatal("expected error, got nil")
 	}
 }
 
