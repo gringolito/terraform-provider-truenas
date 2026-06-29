@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(backlog-preflight *)",
+      "Bash(pick-item *)",
+      "Bash(go build *)",
+      "Bash(go mod *)",
+      "Bash(go test *)",
+      "Bash(go vet *)",
+      "Bash(make acc-tests *)",
+      "Bash(make build *)",
+      "Bash(make codegen *)",
+      "Bash(make fmt *)",
+      "Bash(make generate *)",
+      "Bash(make lint *)",
+      "Bash(make unit-tests *)"
+    ]
+  }
+}
