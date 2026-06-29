@@ -99,29 +99,29 @@ type UserCreateArgs struct {
 	Home                 string          `json:"home,omitempty"`
 	Shell                string          `json:"shell,omitempty"`
 	FullName             string          `json:"full_name"`
-	Smb                  bool            `json:"smb,omitempty"`
+	Smb                  *bool           `json:"smb,omitempty"`
 	UsernsIdmap          json.RawMessage `json:"userns_idmap,omitempty"`
 	Group                *int64          `json:"group,omitempty"`
 	Groups               []int64         `json:"groups,omitempty"`
-	PasswordDisabled     bool            `json:"password_disabled,omitempty"`
-	SshPasswordEnabled   bool            `json:"ssh_password_enabled,omitempty"`
+	PasswordDisabled     *bool           `json:"password_disabled,omitempty"`
+	SshPasswordEnabled   *bool           `json:"ssh_password_enabled,omitempty"`
 	Sshpubkey            *string         `json:"sshpubkey,omitempty"`
-	Locked               bool            `json:"locked,omitempty"`
+	Locked               *bool           `json:"locked,omitempty"`
 	SudoCommands         []string        `json:"sudo_commands,omitempty"`
 	SudoCommandsNopasswd []string        `json:"sudo_commands_nopasswd,omitempty"`
 	Email                *string         `json:"email,omitempty"`
-	GroupCreate          bool            `json:"group_create,omitempty"`
-	HomeCreate           bool            `json:"home_create,omitempty"`
+	GroupCreate          *bool           `json:"group_create,omitempty"`
+	HomeCreate           *bool           `json:"home_create,omitempty"`
 	HomeMode             string          `json:"home_mode,omitempty"`
 	Password             *string         `json:"password,omitempty"`
-	RandomPassword       bool            `json:"random_password,omitempty"`
+	RandomPassword       *bool           `json:"random_password,omitempty"`
 }
 
 type UserGetUserObjArgs struct {
 	Username  *string `json:"username,omitempty"`
 	Uid       *int64  `json:"uid,omitempty"`
-	GetGroups bool    `json:"get_groups,omitempty"`
-	SidInfo   bool    `json:"sid_info,omitempty"`
+	GetGroups *bool   `json:"get_groups,omitempty"`
+	SidInfo   *bool   `json:"sid_info,omitempty"`
 }
 
 type UserSetPasswordArgs struct {
@@ -135,21 +135,21 @@ type UserUpdateArgs struct {
 	Home                 string          `json:"home,omitempty"`
 	Shell                string          `json:"shell,omitempty"`
 	FullName             string          `json:"full_name,omitempty"`
-	Smb                  *bool           `json:"smb"`
+	Smb                  *bool           `json:"smb,omitempty"`
 	UsernsIdmap          json.RawMessage `json:"userns_idmap,omitempty"`
 	Group                *int64          `json:"group,omitempty"`
-	Groups               []int64         `json:"groups"`
-	PasswordDisabled     *bool           `json:"password_disabled"`
-	SshPasswordEnabled   *bool           `json:"ssh_password_enabled"`
+	Groups               *[]int64        `json:"groups,omitempty"`
+	PasswordDisabled     *bool           `json:"password_disabled,omitempty"`
+	SshPasswordEnabled   *bool           `json:"ssh_password_enabled,omitempty"`
 	Sshpubkey            *string         `json:"sshpubkey,omitempty"`
-	Locked               *bool           `json:"locked"`
-	SudoCommands         []string        `json:"sudo_commands"`
-	SudoCommandsNopasswd []string        `json:"sudo_commands_nopasswd"`
+	Locked               *bool           `json:"locked,omitempty"`
+	SudoCommands         *[]string       `json:"sudo_commands,omitempty"`
+	SudoCommandsNopasswd *[]string       `json:"sudo_commands_nopasswd,omitempty"`
 	Email                *string         `json:"email,omitempty"`
-	HomeCreate           *bool           `json:"home_create"`
+	HomeCreate           *bool           `json:"home_create,omitempty"`
 	HomeMode             string          `json:"home_mode,omitempty"`
 	Password             *string         `json:"password,omitempty"`
-	RandomPassword       *bool           `json:"random_password"`
+	RandomPassword       *bool           `json:"random_password,omitempty"`
 }
 
 func UserCreate(ctx context.Context, c client.Caller, args UserCreateArgs) (*User, error) {

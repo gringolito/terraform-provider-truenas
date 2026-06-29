@@ -450,14 +450,14 @@ func generateFile(ns string, methods []string, reg Registry) ([]byte, error) {
 	// Return structs first (shared across methods).
 	for _, s := range sigs {
 		if s.returnStructName != "" && !emitted[s.returnStructName] && s.returnSchema != nil {
-			emitStruct(&buf, s.returnStructName, *s.returnSchema, false)
+			emitStruct(&buf, s.returnStructName, *s.returnSchema, false, false)
 			emitted[s.returnStructName] = true
 		}
 	}
-	// Args structs.
+	// Args structs (isArgs=true so optional bools become *bool).
 	for _, s := range sigs {
 		if s.argsStructName != "" && !emitted[s.argsStructName] && s.argsSchema != nil {
-			emitStruct(&buf, s.argsStructName, *s.argsSchema, s.isUpdateArgs)
+			emitStruct(&buf, s.argsStructName, *s.argsSchema, s.isUpdateArgs, true)
 			emitted[s.argsStructName] = true
 		}
 	}
@@ -483,7 +483,11 @@ func structNeedsJSON(s Schema) bool {
 	return false
 }
 
-func emitStruct(buf *bytes.Buffer, name string, s Schema, updateArgs bool) {
+// emitStruct writes a Go struct definition. updateArgs=true activates
+// update-arg-specific transformations (slices become *[]T). isArgs=true
+// additionally makes optional bool fields *bool so callers can explicitly
+// send false (not just omit the field).
+func emitStruct(buf *bytes.Buffer, name string, s Schema, updateArgs, isArgs bool) {
 	s = resolveAllOf(s)
 
 	buf.WriteString("type " + name + " struct {\n")
@@ -498,12 +502,18 @@ func emitStruct(buf *bytes.Buffer, name string, s Schema, updateArgs bool) {
 		required := isFieldRequired(s, fieldName, fieldSchema)
 
 		switch {
-		case updateArgs && goType == "bool":
-			// *bool with no omitempty: nil pointer means "not set", false means "set to false".
+		case isArgs && !required && goType == "bool":
+			// *bool with omitempty: nil → field omitted; non-nil → value sent.
+			// Applies to both create and update args so callers can send explicit false.
 			goType = "*bool"
+			tag += ",omitempty"
 		case updateArgs && strings.HasPrefix(goType, "[]"):
-			// Slice fields in update args must not have omitempty so an empty
-			// slice (e.g. sudo_commands: []) is sent rather than omitted.
+			// Use *[]T with omitempty: nil → field omitted from JSON entirely;
+			// &[]T{} → field sent as []; &[]T{v} → field sent as [v].
+			// This allows callers to omit fields they do not manage (e.g. groups
+			// on truenas_user, which is owned by truenas_user_group_membership).
+			goType = "*" + goType
+			tag += ",omitempty"
 		case !required:
 			tag += ",omitempty"
 		}

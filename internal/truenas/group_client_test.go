@@ -82,10 +82,11 @@ func TestGroupUpdate(t *testing.T) {
 		},
 	}
 	smb := true
+	sudoCmds := []string{}
 	_, err := truenas.GroupUpdate(context.Background(), fake, 42, truenas.GroupUpdateArgs{
 		Name:         "renamed",
 		Smb:          &smb,
-		SudoCommands: []string{},
+		SudoCommands: &sudoCmds,
 	})
 	if err != nil {
 		t.Fatalf("GroupUpdate: %v", err)

@@ -158,7 +158,8 @@ func (r *GroupResource) Create(ctx context.Context, req resource.CreateRequest, 
 		args.Gid = &v
 	}
 	if !plan.Smb.IsNull() && !plan.Smb.IsUnknown() {
-		args.Smb = plan.Smb.ValueBool()
+		v := plan.Smb.ValueBool()
+		args.Smb = &v
 	}
 	if resp.Diagnostics.HasError() {
 		return
@@ -212,14 +213,15 @@ func (r *GroupResource) Update(ctx context.Context, req resource.UpdateRequest, 
 	}
 
 	smb := plan.Smb.ValueBool()
+	sudoCmds := setToStringSlice(ctx, plan.SudoCommands, &resp.Diagnostics)
+	sudoCmdsNP := setToStringSlice(ctx, plan.SudoCommandsNopasswd, &resp.Diagnostics)
 	args := truenas.GroupUpdateArgs{
 		Name:                 plan.Name.ValueString(),
 		Smb:                  &smb,
-		SudoCommands:         setToStringSlice(ctx, plan.SudoCommands, &resp.Diagnostics),
-		SudoCommandsNopasswd: setToStringSlice(ctx, plan.SudoCommandsNopasswd, &resp.Diagnostics),
-		// Users is a read-only computed attribute — never send it in update
-		// to avoid inadvertently clearing group membership.
-		Users: []int64{},
+		SudoCommands:         &sudoCmds,
+		SudoCommandsNopasswd: &sudoCmdsNP,
+		// Users is a read-only computed attribute — omit (nil) to preserve membership.
+		Users: nil,
 	}
 	// Only send userns_idmap when the plan has an explicit value; omit it
 	// (leave nil so json omitempty kicks in) when unchanged/null.

@@ -41,11 +41,11 @@ type SharingSmbCreateArgs struct {
 	Purpose                     string                     `json:"purpose,omitempty"`
 	Name                        string                     `json:"name"`
 	Path                        json.RawMessage            `json:"path"`
-	Enabled                     bool                       `json:"enabled,omitempty"`
+	Enabled                     *bool                      `json:"enabled,omitempty"`
 	Comment                     string                     `json:"comment,omitempty"`
-	Readonly                    bool                       `json:"readonly,omitempty"`
-	Browsable                   bool                       `json:"browsable,omitempty"`
-	AccessBasedShareEnumeration bool                       `json:"access_based_share_enumeration,omitempty"`
+	Readonly                    *bool                      `json:"readonly,omitempty"`
+	Browsable                   *bool                      `json:"browsable,omitempty"`
+	AccessBasedShareEnumeration *bool                      `json:"access_based_share_enumeration,omitempty"`
 	Audit                       map[string]json.RawMessage `json:"audit,omitempty"`
 	Options                     *json.RawMessage           `json:"options,omitempty"`
 }
@@ -67,11 +67,11 @@ type SharingSmbUpdateArgs struct {
 	Purpose                     string                     `json:"purpose,omitempty"`
 	Name                        string                     `json:"name,omitempty"`
 	Path                        json.RawMessage            `json:"path,omitempty"`
-	Enabled                     *bool                      `json:"enabled"`
+	Enabled                     *bool                      `json:"enabled,omitempty"`
 	Comment                     string                     `json:"comment,omitempty"`
-	Readonly                    *bool                      `json:"readonly"`
-	Browsable                   *bool                      `json:"browsable"`
-	AccessBasedShareEnumeration *bool                      `json:"access_based_share_enumeration"`
+	Readonly                    *bool                      `json:"readonly,omitempty"`
+	Browsable                   *bool                      `json:"browsable,omitempty"`
+	AccessBasedShareEnumeration *bool                      `json:"access_based_share_enumeration,omitempty"`
 	Audit                       map[string]json.RawMessage `json:"audit,omitempty"`
 	Options                     *json.RawMessage           `json:"options,omitempty"`
 }
