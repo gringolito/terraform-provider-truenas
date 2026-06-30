@@ -1,2 +1,2 @@
-# Import a group using its integer API ID (shown in the TrueNAS UI as the group ID)
-terraform import truenas_group.example 1042
+# Import a group using its Unix GID
+terraform import truenas_group.example 3000

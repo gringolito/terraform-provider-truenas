@@ -107,7 +107,7 @@ func TestAccGroupResource_import(t *testing.T) {
 // verifies that the next plan removes it from state without error.
 func TestAccGroupResource_outOfBandDeletion(t *testing.T) {
 	name := randGroupName()
-	var groupID int64
+	var groupGID int64
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
@@ -124,7 +124,7 @@ func TestAccGroupResource_outOfBandDeletion(t *testing.T) {
 						if err != nil {
 							return err
 						}
-						groupID = id
+						groupGID = id
 						return nil
 					},
 				),
@@ -134,7 +134,12 @@ func TestAccGroupResource_outOfBandDeletion(t *testing.T) {
 				// the drift (plan shows "will create") without re-applying.
 				PreConfig: func() {
 					c := accTestCaller(t)
-					if err := truenas.GroupDelete(context.Background(), c, groupID); err != nil {
+					apiID, err := truenas.ResolveGroupIDByGID(context.Background(), c, groupGID)
+					if err != nil {
+						t.Logf("out-of-band delete: resolve GID %d: %v (may be ok if already gone)", groupGID, err)
+						return
+					}
+					if err := truenas.GroupDelete(context.Background(), c, apiID); err != nil {
 						t.Logf("out-of-band delete: %v (may be ok if already gone)", err)
 					}
 				},

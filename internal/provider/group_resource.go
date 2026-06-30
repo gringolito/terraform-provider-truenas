@@ -58,7 +58,7 @@ func (r *GroupResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 		Attributes: map[string]schema.Attribute{
 			"id": schema.Int64Attribute{
 				Computed:            true,
-				MarkdownDescription: "API identifier of the group.",
+				MarkdownDescription: "Unix GID of the group.",
 				PlanModifiers:       []planmodifier.Int64{int64planmodifier.UseStateForUnknown()},
 			},
 			"name": schema.StringAttribute{
@@ -127,6 +127,39 @@ func (r *GroupResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 	}
 }
 
+func readGroupPrivateAPIID(ctx context.Context, ps privateStateKV) (int64, diag.Diagnostics) {
+	var diagnostics diag.Diagnostics
+	raw, d := ps.GetKey(ctx, "group_api_id")
+	diagnostics.Append(d...)
+	if diagnostics.HasError() {
+		return 0, diagnostics
+	}
+	if len(raw) == 0 {
+		diagnostics.AddError("Missing private state", "Internal group API ID is not stored. Re-import the resource.")
+		return 0, diagnostics
+	}
+	var v struct {
+		APIID int64 `json:"api_id"`
+	}
+	if err := json.Unmarshal(raw, &v); err != nil {
+		diagnostics.AddError("Corrupt private state", fmt.Sprintf("Cannot decode internal group API ID: %v", err))
+		return 0, diagnostics
+	}
+	return v.APIID, diagnostics
+}
+
+func writeGroupPrivateAPIID(ctx context.Context, ps privateStateKV, apiID int64) diag.Diagnostics {
+	raw, err := json.Marshal(struct {
+		APIID int64 `json:"api_id"`
+	}{APIID: apiID})
+	if err != nil {
+		var diagnostics diag.Diagnostics
+		diagnostics.AddError("Cannot encode private state", err.Error())
+		return diagnostics
+	}
+	return ps.SetKey(ctx, "group_api_id", raw)
+}
+
 func (r *GroupResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
 	if req.ProviderData == nil {
 		return
@@ -171,6 +204,11 @@ func (r *GroupResource) Create(ctx context.Context, req resource.CreateRequest, 
 		return
 	}
 
+	resp.Diagnostics.Append(writeGroupPrivateAPIID(ctx, resp.Private, id)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
 	g, err := truenas.GroupGetInstance(ctx, r.caller, id)
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading group after create", err.Error())
@@ -187,7 +225,13 @@ func (r *GroupResource) Read(ctx context.Context, req resource.ReadRequest, resp
 		return
 	}
 
-	g, err := truenas.GroupGetInstance(ctx, r.caller, state.Id.ValueInt64())
+	apiID, diags := readGroupPrivateAPIID(ctx, req.Private)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	g, err := truenas.GroupGetInstance(ctx, r.caller, apiID)
 	if err != nil {
 		if isNotFoundErr(err) {
 			resp.State.RemoveResource(ctx)
@@ -196,6 +240,12 @@ func (r *GroupResource) Read(ctx context.Context, req resource.ReadRequest, resp
 		resp.Diagnostics.AddError("Error reading group", err.Error())
 		return
 	}
+
+	resp.Diagnostics.Append(writeGroupPrivateAPIID(ctx, resp.Private, g.Id)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
 	groupToModelWithUIDs(ctx, r.caller, g, &state, &resp.Diagnostics)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
@@ -228,31 +278,39 @@ func (r *GroupResource) Update(ctx context.Context, req resource.UpdateRequest, 
 	if !plan.UsernsIdmap.IsNull() && !plan.UsernsIdmap.IsUnknown() {
 		args.UsernsIdmap = usernsIdmapToJSON(plan.UsernsIdmap)
 	}
+	apiID, diags := readGroupPrivateAPIID(ctx, req.Private)
+	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	if _, err := truenas.GroupUpdate(ctx, r.caller, state.Id.ValueInt64(), args); err != nil {
+	if _, err := truenas.GroupUpdate(ctx, r.caller, apiID, args); err != nil {
 		resp.Diagnostics.AddError("Error updating group", err.Error())
 		return
 	}
 
-	g, err := truenas.GroupGetInstance(ctx, r.caller, state.Id.ValueInt64())
+	g, err := truenas.GroupGetInstance(ctx, r.caller, apiID)
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading group after update", err.Error())
 		return
 	}
+
+	resp.Diagnostics.Append(writeGroupPrivateAPIID(ctx, resp.Private, apiID)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
 	groupToModelWithUIDs(ctx, r.caller, g, &plan, &resp.Diagnostics)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
 func (r *GroupResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
-	var state GroupResourceModel
-	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	apiID, diags := readGroupPrivateAPIID(ctx, req.Private)
+	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	if err := truenas.GroupDelete(ctx, r.caller, state.Id.ValueInt64()); err != nil {
+	if err := truenas.GroupDelete(ctx, r.caller, apiID); err != nil {
 		if isNotFoundErr(err) {
 			return
 		}
@@ -261,13 +319,24 @@ func (r *GroupResource) Delete(ctx context.Context, req resource.DeleteRequest, 
 }
 
 func (r *GroupResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	id, err := strconv.ParseInt(req.ID, 10, 64)
+	gid, err := strconv.ParseInt(req.ID, 10, 64)
 	if err != nil {
 		resp.Diagnostics.AddError("Invalid import ID",
-			fmt.Sprintf("Expected an integer group ID, got %q: %v", req.ID, err))
+			fmt.Sprintf("Expected a Unix GID integer, got %q: %v", req.ID, err))
 		return
 	}
-	resp.State.SetAttribute(ctx, path.Root("id"), types.Int64Value(id))
+
+	apiID, err := truenas.ResolveGroupIDByGID(ctx, r.caller, gid)
+	if err != nil {
+		resp.Diagnostics.AddError("Error resolving group by GID", err.Error())
+		return
+	}
+
+	resp.Diagnostics.Append(writeGroupPrivateAPIID(ctx, resp.Private, apiID)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	resp.State.SetAttribute(ctx, path.Root("id"), types.Int64Value(gid))
 }
 
 // ---- conversion helpers ----------------------------------------------------
@@ -349,7 +418,7 @@ func isNotFoundErr(err error) bool {
 }
 
 func groupToModel(ctx context.Context, g *truenas.Group, m *GroupResourceModel, diags *diag.Diagnostics) {
-	m.Id = types.Int64Value(g.Id)
+	m.Id = types.Int64Value(g.Gid)
 	m.Name = types.StringValue(g.Name)
 	m.Gid = types.Int64Value(g.Gid)
 	m.Smb = types.BoolValue(g.Smb)
