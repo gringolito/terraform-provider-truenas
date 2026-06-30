@@ -122,6 +122,7 @@ func (r *GroupResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 				Computed:            true,
 				ElementType:         types.Int64Type,
 				MarkdownDescription: "Unix UIDs of local users who are members of this group.",
+				PlanModifiers:       []planmodifier.Set{setplanmodifier.UseStateForUnknown()},
 			},
 		},
 	}
