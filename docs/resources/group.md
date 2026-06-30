@@ -41,7 +41,7 @@ resource "truenas_group" "example" {
 ### Read-Only
 
 - `builtin` (Boolean) Whether this is an internal system group.
-- `id` (Number) API identifier of the group.
+- `id` (Number) Unix GID of the group.
 - `immutable` (Boolean) Whether this group entry can be modified.
 - `local` (Boolean) Whether this group is local to the TrueNAS server.
 - `roles` (Set of String) TrueNAS roles assigned to this group.
@@ -55,6 +55,6 @@ Import is supported using the following syntax:
 The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
 
 ```shell
-# Import a group using its integer API ID (shown in the TrueNAS UI as the group ID)
-terraform import truenas_group.example 1042
+# Import a group using its Unix GID
+terraform import truenas_group.example 3000
 ```

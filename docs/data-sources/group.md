@@ -29,7 +29,7 @@ data "truenas_group" "by_name" {
 
 ### Optional
 
-- `id` (Number) Identifier of the group. Set this or `name` (not both).
+- `id` (Number) Unix GID of the group. Set this or `name` (not both).
 - `name` (String) Name of the group. Set this or `id` (not both).
 
 ### Read-Only

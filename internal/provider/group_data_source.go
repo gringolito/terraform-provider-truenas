@@ -50,7 +50,7 @@ func (d *GroupDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, 
 			"id": schema.Int64Attribute{
 				Optional:            true,
 				Computed:            true,
-				MarkdownDescription: "Identifier of the group. Set this or `name` (not both).",
+				MarkdownDescription: "Unix GID of the group. Set this or `name` (not both).",
 			},
 			"name": schema.StringAttribute{
 				Optional:            true,
@@ -143,7 +143,12 @@ func (d *GroupDataSource) Read(ctx context.Context, req datasource.ReadRequest, 
 	var g *truenas.Group
 	var err error
 	if hasID {
-		g, err = truenas.GroupGetInstance(ctx, d.caller, config.Id.ValueInt64())
+		apiID, idErr := truenas.ResolveGroupIDByGID(ctx, d.caller, config.Id.ValueInt64())
+		if idErr != nil {
+			resp.Diagnostics.AddError("Error resolving group", idErr.Error())
+			return
+		}
+		g, err = truenas.GroupGetInstance(ctx, d.caller, apiID)
 	} else {
 		g, err = truenas.GroupGetByName(ctx, d.caller, config.Name.ValueString())
 	}
