@@ -171,7 +171,8 @@ func TestAccGroupResource_usersReadOnly(t *testing.T) {
 func accTestCaller(t *testing.T) client.Caller {
 	t.Helper()
 	host, apiKey, username, password := accTestCredentials(t)
-	c, err := client.NewWebSocketClient(host, apiKey, username, password, false)
+	insecureSkipVerify, _ := strconv.ParseBool(os.Getenv("TRUENAS_INSECURE_SKIP_VERIFY"))
+	c, err := client.NewWebSocketClient(host, apiKey, username, password, insecureSkipVerify)
 	if err != nil {
 		t.Fatalf("accTestCaller: %v", err)
 	}

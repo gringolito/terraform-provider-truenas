@@ -27,9 +27,14 @@ func TestGenerateNamespace(t *testing.T) {
 		t.Fatalf("parse fixture: %v", err)
 	}
 
+	datasetBranchSelectors := map[string]codegen.BranchSelector{
+		"pool.dataset.create": {Field: "type", Value: "FILESYSTEM"},
+	}
+
 	tests := []struct {
-		ns     string
-		golden string
+		ns              string
+		golden          string
+		branchSelectors map[string]codegen.BranchSelector
 	}{
 		// These must cover the five required schema patterns:
 		//  1. plain method (flat struct, single arg)
@@ -37,16 +42,21 @@ func TestGenerateNamespace(t *testing.T) {
 		//  3. polymorphic anyOf composition
 		//  4. anyOf: [T, null] nullable field
 		//  5. method with _required_ and _attrs_order_ annotations
-		{"user", filepath.Join("testdata", "golden", "user_gen.go")},
+		{"user", filepath.Join("testdata", "golden", "user_gen.go"), nil},
 		// group also tests:
 		//  6. non-standard verb returns separate result struct (get_group_obj → GroupGetGroupObjResult)
 		//  7. update args bool→*bool and slice→no omitempty
-		{"group", filepath.Join("testdata", "golden", "group_gen.go")},
+		{"group", filepath.Join("testdata", "golden", "group_gen.go"), nil},
+		// pool.dataset also tests:
+		//  8. string-typed id positional arg (get_instance/update/delete key on the ZFS path)
+		//  9. discriminated-union accepts (create's FILESYSTEM/VOLUME anyOf, branch selected by config)
+		//  10. shared ZFSProperty struct for the recurring {value,rawvalue,parsed,source,source_info} shape
+		{"pool.dataset", filepath.Join("testdata", "golden", "pool_dataset_gen.go"), datasetBranchSelectors},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.ns, func(t *testing.T) {
-			got, err := codegen.GenerateNamespace(reg, tt.ns)
+			got, err := codegen.GenerateNamespace(reg, tt.ns, tt.branchSelectors)
 			if err != nil {
 				t.Fatalf("GenerateNamespace(%q): %v", tt.ns, err)
 			}
@@ -88,7 +98,7 @@ func TestDateTimeFieldMapsToDateTime(t *testing.T) {
 		t.Fatalf("parse fixture: %v", err)
 	}
 
-	got, err := codegen.GenerateNamespace(reg, "user")
+	got, err := codegen.GenerateNamespace(reg, "user", nil)
 	if err != nil {
 		t.Fatalf("GenerateNamespace(user): %v", err)
 	}

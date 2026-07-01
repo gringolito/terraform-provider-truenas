@@ -148,8 +148,8 @@ func PoolCreate(ctx context.Context, c client.Caller, args PoolCreateArgs) (*Poo
 	return &result, nil
 }
 
-func PoolDdtPrefetch(ctx context.Context, c client.Caller) error {
-	_, err := c.Call(ctx, "pool.ddt_prefetch", []any{})
+func PoolDdtPrefetch(ctx context.Context, c client.Caller, id string) error {
+	_, err := c.Call(ctx, "pool.ddt_prefetch", []any{id})
 	return err
 }
 
@@ -297,7 +297,7 @@ func PoolUpgrade(ctx context.Context, c client.Caller, id int64) error {
 	return err
 }
 
-func PoolValidateName(ctx context.Context, c client.Caller) error {
-	_, err := c.Call(ctx, "pool.validate_name", []any{})
+func PoolValidateName(ctx context.Context, c client.Caller, id string) error {
+	_, err := c.Call(ctx, "pool.validate_name", []any{id})
 	return err
 }
