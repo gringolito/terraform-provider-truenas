@@ -124,6 +124,11 @@ type UserGetUserObjArgs struct {
 	SidInfo   *bool   `json:"sid_info,omitempty"`
 }
 
+type UserRenew2faSecretArgs struct {
+	OtpDigits int64 `json:"otp_digits,omitempty"`
+	Interval  int64 `json:"interval,omitempty"`
+}
+
 type UserSetPasswordArgs struct {
 	Username    string  `json:"username"`
 	OldPassword *string `json:"old_password,omitempty"`
@@ -222,8 +227,8 @@ func UserQuery(ctx context.Context, c client.Caller, filters ...QueryFilter) (js
 	return result, nil
 }
 
-func UserRenew2faSecret(ctx context.Context, c client.Caller) (*UserRenew2faSecretResult, error) {
-	raw, err := c.Call(ctx, "user.renew_2fa_secret", []any{})
+func UserRenew2faSecret(ctx context.Context, c client.Caller, id string, args UserRenew2faSecretArgs) (*UserRenew2faSecretResult, error) {
+	raw, err := c.Call(ctx, "user.renew_2fa_secret", []any{id, args})
 	if err != nil {
 		return nil, err
 	}
@@ -239,8 +244,8 @@ func UserSetPassword(ctx context.Context, c client.Caller, args UserSetPasswordA
 	return err
 }
 
-func UserSetupLocalAdministrator(ctx context.Context, c client.Caller) error {
-	_, err := c.Call(ctx, "user.setup_local_administrator", []any{})
+func UserSetupLocalAdministrator(ctx context.Context, c client.Caller, id string) error {
+	_, err := c.Call(ctx, "user.setup_local_administrator", []any{id})
 	return err
 }
 
@@ -256,8 +261,8 @@ func UserShellChoices(ctx context.Context, c client.Caller) (*UserShellChoicesRe
 	return &result, nil
 }
 
-func UserUnset2faSecret(ctx context.Context, c client.Caller) error {
-	_, err := c.Call(ctx, "user.unset_2fa_secret", []any{})
+func UserUnset2faSecret(ctx context.Context, c client.Caller, id string) error {
+	_, err := c.Call(ctx, "user.unset_2fa_secret", []any{id})
 	return err
 }
 

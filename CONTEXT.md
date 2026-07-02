@@ -80,3 +80,31 @@ files. These live entirely in the TrueNAS `filesystem.*` namespace
 (`filesystem.setperm`/`chown`/`setacl`), are **out of v0.1 scope**, and are *not* set by
 `pool.dataset.create`. In v0.1, users/groups/[[membership]] are identity primitives only and
 grant no dataset or share access by themselves.
+
+**Dataset path**:
+The full ZFS path (e.g. `tank/projects/child`) that is a dataset's sole identity. There is
+no separate "pool" input on `pool.dataset.create` — the API's `name` field *is* the full
+path, and `pool.dataset.get_instance`/`.update`/`.delete` key on this same string. `pool`
+(the leading path segment) and `name` (the last segment) exist only as derived, read-only
+views split from the path — never as independent create/import inputs.
+_Avoid_: dataset name (ambiguous with the API's overloaded `name` field — say "path" for the
+full identity, "last path segment" if you specifically mean the tail component)
+
+**Dataset type**:
+The discriminator (`FILESYSTEM` or `VOLUME`) on `pool.dataset.create`'s two-variant accepts
+schema, selecting which property set applies (e.g. `VOLUME` requires `volsize`). v0.1 manages
+`FILESYSTEM` only; encountering `VOLUME` on read/import is a clear, actionable error, not
+silently ignored.
+
+**ZFS property**:
+A dataset attribute (e.g. `compression`, `quota`) returned by `pool.dataset.get_instance` as
+an object with `{value, rawvalue, parsed, source, source_info}`, not a plain scalar.
+`source` indicates where the effective value comes from (`LOCAL`, `INHERITED`, `DEFAULT`).
+The four representations disagree in format — `value` mirrors the exact string/enum casing
+`pool.dataset.create`/`.update` accept (e.g. `"LZ4"`, `"128K"`), while `parsed` is a
+Python-native convenience type that does *not* always match the create/update input shape
+(e.g. `quota`'s `value` is human-formatted `"20 GiB"` while its `accepts` type is a raw
+integer byte count — `parsed` matches there instead). Which of the two to use for a given
+property is therefore driven by that property's `accepts` type, not guessable from the read
+shape alone.
+_Avoid_: raw value (ambiguous between `rawvalue` and `value`)

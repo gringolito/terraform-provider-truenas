@@ -33,6 +33,11 @@ var defaultNamespaces = []string{
 	"pool",
 }
 
+// defaultBranchSelectors selects the FILESYSTEM branch of pool.dataset.create's
+// discriminated-union accepts entry; the VOLUME branch is out of scope (v0.1
+// manages FILESYSTEM datasets only, see docs/adr/0007).
+var defaultBranchSelectors = "pool.dataset.create:type=FILESYSTEM"
+
 func main() {
 	// Defaults mirror the provider's env-var names so the same shell environment
 	// works for both 'terraform apply' and 'make refresh-snapshot'.
@@ -44,13 +49,14 @@ func main() {
 	}
 
 	var (
-		snapshot   = flag.String("snapshot", "api/registry.json", "path to registry JSON snapshot")
-		nsFlag     = flag.String("namespaces", strings.Join(defaultNamespaces, ","), "comma-separated namespace allowlist")
-		out        = flag.String("out", "internal/truenas/", "output directory for generated Go files")
-		refresh    = flag.Bool("refresh", false, "connect to live TrueNAS, write snapshot, then exit")
-		host       = flag.String("host", os.Getenv("TRUENAS_HOST"), "TrueNAS host (also TRUENAS_HOST)")
-		apiKey     = flag.String("api-key", os.Getenv("TRUENAS_API_KEY"), "TrueNAS API key (also TRUENAS_API_KEY)")
-		skipVerify = flag.Bool("insecure", insecureDefault, "skip TLS certificate verification (also TRUENAS_INSECURE_SKIP_VERIFY)")
+		snapshot     = flag.String("snapshot", "api/registry.json", "path to registry JSON snapshot")
+		nsFlag       = flag.String("namespaces", strings.Join(defaultNamespaces, ","), "comma-separated namespace allowlist")
+		branchSelect = flag.String("branch-select", defaultBranchSelectors, "comma-separated method:field=value discriminated-union branch selectors")
+		out          = flag.String("out", "internal/truenas/", "output directory for generated Go files")
+		refresh      = flag.Bool("refresh", false, "connect to live TrueNAS, write snapshot, then exit")
+		host         = flag.String("host", os.Getenv("TRUENAS_HOST"), "TrueNAS host (also TRUENAS_HOST)")
+		apiKey       = flag.String("api-key", os.Getenv("TRUENAS_API_KEY"), "TrueNAS API key (also TRUENAS_API_KEY)")
+		skipVerify   = flag.Bool("insecure", insecureDefault, "skip TLS certificate verification (also TRUENAS_INSECURE_SKIP_VERIFY)")
 	)
 	flag.Parse()
 
@@ -63,9 +69,36 @@ func main() {
 		return
 	}
 
-	if err := runGenerate(*snapshot, namespaces, *out); err != nil {
+	branchSelectors, err := parseBranchSelectors(*branchSelect)
+	if err != nil {
+		log.Fatalf("--branch-select: %v", err)
+	}
+
+	if err := runGenerate(*snapshot, namespaces, *out, branchSelectors); err != nil {
 		log.Fatalf("generate: %v", err)
 	}
+}
+
+// parseBranchSelectors parses a comma-separated list of "method:field=value"
+// entries into a map keyed by the fully-qualified method name.
+func parseBranchSelectors(s string) (map[string]codegen.BranchSelector, error) {
+	sels := make(map[string]codegen.BranchSelector)
+	for entry := range strings.SplitSeq(s, ",") {
+		entry = strings.TrimSpace(entry)
+		if entry == "" {
+			continue
+		}
+		method, rest, ok := strings.Cut(entry, ":")
+		if !ok {
+			return nil, fmt.Errorf("invalid branch selector %q: expected method:field=value", entry)
+		}
+		field, value, ok := strings.Cut(rest, "=")
+		if !ok {
+			return nil, fmt.Errorf("invalid branch selector %q: expected method:field=value", entry)
+		}
+		sels[method] = codegen.BranchSelector{Field: field, Value: value}
+	}
+	return sels, nil
 }
 
 func parseNamespaces(s string) []string {
@@ -136,7 +169,7 @@ func runRefresh(host, apiKey string, skipVerify bool, snapshotPath string, names
 }
 
 // runGenerate reads the snapshot and writes typed Go source files to outDir.
-func runGenerate(snapshotPath string, namespaces []string, outDir string) error {
+func runGenerate(snapshotPath string, namespaces []string, outDir string, branchSelectors map[string]codegen.BranchSelector) error {
 	data, err := os.ReadFile(snapshotPath)
 	if err != nil {
 		return fmt.Errorf("read snapshot: %w", err)
@@ -147,7 +180,7 @@ func runGenerate(snapshotPath string, namespaces []string, outDir string) error 
 	}
 
 	log.Printf("generating typed client for %v → %s", namespaces, outDir)
-	if err := codegen.Generate(reg, namespaces, outDir); err != nil {
+	if err := codegen.Generate(reg, namespaces, outDir, branchSelectors); err != nil {
 		return fmt.Errorf("generate: %w", err)
 	}
 	log.Println("done")

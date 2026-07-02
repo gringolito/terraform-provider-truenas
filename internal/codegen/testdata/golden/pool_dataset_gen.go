@@ -19,26 +19,6 @@ type ZFSProperty struct {
 	SourceInfo json.RawMessage `json:"source_info,omitempty"`
 }
 
-type PoolDatasetAttachmentsResult struct {
-	Type        string   `json:"type"`
-	Service     *string  `json:"service"`
-	Attachments []string `json:"attachments"`
-}
-
-type PoolDatasetChecksumChoicesResult struct {
-	ON        string `json:"ON"`
-	FLETCHER2 string `json:"FLETCHER2"`
-	FLETCHER4 string `json:"FLETCHER4"`
-	SHA256    string `json:"SHA256"`
-	SHA512    string `json:"SHA512"`
-	SKEIN     string `json:"SKEIN"`
-	EDONR     string `json:"EDONR"`
-	BLAKE3    string `json:"BLAKE3"`
-}
-
-type PoolDatasetCompressionChoicesResult struct {
-}
-
 type PoolDataset struct {
 	Id                    string                     `json:"id,omitempty"`
 	Type                  string                     `json:"type,omitempty"`
@@ -94,40 +74,6 @@ type PoolDataset struct {
 	Mountpoint            *string                    `json:"mountpoint,omitempty"`
 }
 
-type PoolDatasetDetailsResult struct {
-}
-
-type PoolDatasetEncryptionAlgorithmChoicesResult struct {
-	AES128CCM string `json:"AES-128-CCM"`
-	AES192CCM string `json:"AES-192-CCM"`
-	AES256CCM string `json:"AES-256-CCM"`
-	AES128GCM string `json:"AES-128-GCM"`
-	AES192GCM string `json:"AES-192-GCM"`
-	AES256GCM string `json:"AES-256-GCM"`
-}
-
-type PoolDatasetEncryptionSummaryResult struct {
-	Name                 string  `json:"name"`
-	KeyFormat            string  `json:"key_format"`
-	KeyPresentInDatabase bool    `json:"key_present_in_database"`
-	ValidKey             bool    `json:"valid_key"`
-	Locked               bool    `json:"locked"`
-	UnlockError          *string `json:"unlock_error"`
-	UnlockSuccessful     bool    `json:"unlock_successful"`
-}
-
-type PoolDatasetProcessesResult struct {
-	Pid     int64   `json:"pid"`
-	Name    string  `json:"name"`
-	Service *string `json:"service"`
-	Cmdline *string `json:"cmdline"`
-}
-
-type PoolDatasetUnlockResult struct {
-	Unlocked []string                   `json:"unlocked"`
-	Failed   map[string]json.RawMessage `json:"failed"`
-}
-
 type PoolDatasetCreateArgs struct {
 	Name                  string                       `json:"name"`
 	Comments              string                       `json:"comments,omitempty"`
@@ -164,18 +110,6 @@ type PoolDatasetCreateArgs struct {
 	Recordsize            string                       `json:"recordsize,omitempty"`
 }
 
-type PoolDatasetDestroySnapshotsArgs struct {
-	All       *bool             `json:"all,omitempty"`
-	Recursive *bool             `json:"recursive,omitempty"`
-	Snapshots []json.RawMessage `json:"snapshots,omitempty"`
-}
-
-type PoolDatasetRenameArgs struct {
-	NewName   string `json:"new_name"`
-	Recursive *bool  `json:"recursive,omitempty"`
-	Force     *bool  `json:"force,omitempty"`
-}
-
 type PoolDatasetUpdateArgs struct {
 	Comments              string                        `json:"comments,omitempty"`
 	Sync                  string                        `json:"sync,omitempty"`
@@ -208,47 +142,6 @@ type PoolDatasetUpdateArgs struct {
 	UserPropertiesUpdate  *[]map[string]json.RawMessage `json:"user_properties_update,omitempty"`
 }
 
-func PoolDatasetAttachments(ctx context.Context, c client.Caller, id string) ([]*PoolDatasetAttachmentsResult, error) {
-	raw, err := c.Call(ctx, "pool.dataset.attachments", []any{id})
-	if err != nil {
-		return nil, err
-	}
-	var result []*PoolDatasetAttachmentsResult
-	if err := json.Unmarshal(raw, &result); err != nil {
-		return nil, err
-	}
-	return result, nil
-}
-
-func PoolDatasetChangeKey(ctx context.Context, c client.Caller, id string) error {
-	_, err := c.Call(ctx, "pool.dataset.change_key", []any{id})
-	return err
-}
-
-func PoolDatasetChecksumChoices(ctx context.Context, c client.Caller) (*PoolDatasetChecksumChoicesResult, error) {
-	raw, err := c.Call(ctx, "pool.dataset.checksum_choices", []any{})
-	if err != nil {
-		return nil, err
-	}
-	var result PoolDatasetChecksumChoicesResult
-	if err := json.Unmarshal(raw, &result); err != nil {
-		return nil, err
-	}
-	return &result, nil
-}
-
-func PoolDatasetCompressionChoices(ctx context.Context, c client.Caller) (*PoolDatasetCompressionChoicesResult, error) {
-	raw, err := c.Call(ctx, "pool.dataset.compression_choices", []any{})
-	if err != nil {
-		return nil, err
-	}
-	var result PoolDatasetCompressionChoicesResult
-	if err := json.Unmarshal(raw, &result); err != nil {
-		return nil, err
-	}
-	return &result, nil
-}
-
 func PoolDatasetCreate(ctx context.Context, c client.Caller, args PoolDatasetCreateArgs) (*PoolDataset, error) {
 	raw, err := c.Call(ctx, "pool.dataset.create", []any{args})
 	if err != nil {
@@ -266,191 +159,12 @@ func PoolDatasetDelete(ctx context.Context, c client.Caller, id string) error {
 	return err
 }
 
-func PoolDatasetDestroySnapshots(ctx context.Context, c client.Caller, id string, args PoolDatasetDestroySnapshotsArgs) (json.RawMessage, error) {
-	raw, err := c.Call(ctx, "pool.dataset.destroy_snapshots", []any{id, args})
-	if err != nil {
-		return nil, err
-	}
-	var result json.RawMessage
-	if err := json.Unmarshal(raw, &result); err != nil {
-		return nil, err
-	}
-	return result, nil
-}
-
-func PoolDatasetDetails(ctx context.Context, c client.Caller) ([]*PoolDatasetDetailsResult, error) {
-	raw, err := c.Call(ctx, "pool.dataset.details", []any{})
-	if err != nil {
-		return nil, err
-	}
-	var result []*PoolDatasetDetailsResult
-	if err := json.Unmarshal(raw, &result); err != nil {
-		return nil, err
-	}
-	return result, nil
-}
-
-func PoolDatasetEncryptionAlgorithmChoices(ctx context.Context, c client.Caller) (*PoolDatasetEncryptionAlgorithmChoicesResult, error) {
-	raw, err := c.Call(ctx, "pool.dataset.encryption_algorithm_choices", []any{})
-	if err != nil {
-		return nil, err
-	}
-	var result PoolDatasetEncryptionAlgorithmChoicesResult
-	if err := json.Unmarshal(raw, &result); err != nil {
-		return nil, err
-	}
-	return &result, nil
-}
-
-func PoolDatasetEncryptionSummary(ctx context.Context, c client.Caller, id string) ([]*PoolDatasetEncryptionSummaryResult, error) {
-	raw, err := c.Call(ctx, "pool.dataset.encryption_summary", []any{id})
-	if err != nil {
-		return nil, err
-	}
-	var result []*PoolDatasetEncryptionSummaryResult
-	if err := json.Unmarshal(raw, &result); err != nil {
-		return nil, err
-	}
-	return result, nil
-}
-
-func PoolDatasetExportKey(ctx context.Context, c client.Caller, id string) (json.RawMessage, error) {
-	raw, err := c.Call(ctx, "pool.dataset.export_key", []any{id})
-	if err != nil {
-		return nil, err
-	}
-	var result json.RawMessage
-	if err := json.Unmarshal(raw, &result); err != nil {
-		return nil, err
-	}
-	return result, nil
-}
-
-func PoolDatasetExportKeys(ctx context.Context, c client.Caller, id string) error {
-	_, err := c.Call(ctx, "pool.dataset.export_keys", []any{id})
-	return err
-}
-
-func PoolDatasetExportKeysForReplication(ctx context.Context, c client.Caller, id int64) error {
-	_, err := c.Call(ctx, "pool.dataset.export_keys_for_replication", []any{id})
-	return err
-}
-
 func PoolDatasetGetInstance(ctx context.Context, c client.Caller, id string) (*PoolDataset, error) {
 	raw, err := c.Call(ctx, "pool.dataset.get_instance", []any{id})
 	if err != nil {
 		return nil, err
 	}
 	var result PoolDataset
-	if err := json.Unmarshal(raw, &result); err != nil {
-		return nil, err
-	}
-	return &result, nil
-}
-
-func PoolDatasetGetQuota(ctx context.Context, c client.Caller, id string) (json.RawMessage, error) {
-	raw, err := c.Call(ctx, "pool.dataset.get_quota", []any{id})
-	if err != nil {
-		return nil, err
-	}
-	var result json.RawMessage
-	if err := json.Unmarshal(raw, &result); err != nil {
-		return nil, err
-	}
-	return result, nil
-}
-
-func PoolDatasetInheritParentEncryptionProperties(ctx context.Context, c client.Caller, id string) error {
-	_, err := c.Call(ctx, "pool.dataset.inherit_parent_encryption_properties", []any{id})
-	return err
-}
-
-func PoolDatasetLock(ctx context.Context, c client.Caller, id string) error {
-	_, err := c.Call(ctx, "pool.dataset.lock", []any{id})
-	return err
-}
-
-func PoolDatasetProcesses(ctx context.Context, c client.Caller, id string) ([]*PoolDatasetProcessesResult, error) {
-	raw, err := c.Call(ctx, "pool.dataset.processes", []any{id})
-	if err != nil {
-		return nil, err
-	}
-	var result []*PoolDatasetProcessesResult
-	if err := json.Unmarshal(raw, &result); err != nil {
-		return nil, err
-	}
-	return result, nil
-}
-
-func PoolDatasetPromote(ctx context.Context, c client.Caller, id string) error {
-	_, err := c.Call(ctx, "pool.dataset.promote", []any{id})
-	return err
-}
-
-func PoolDatasetQuery(ctx context.Context, c client.Caller, filters ...QueryFilter) (json.RawMessage, error) {
-	raw, err := c.Call(ctx, "pool.dataset.query", []any{filtersToRaw(filters)})
-	if err != nil {
-		return nil, err
-	}
-	var result json.RawMessage
-	if err := json.Unmarshal(raw, &result); err != nil {
-		return nil, err
-	}
-	return result, nil
-}
-
-func PoolDatasetRecommendedZvolBlocksize(ctx context.Context, c client.Caller, id string) (string, error) {
-	raw, err := c.Call(ctx, "pool.dataset.recommended_zvol_blocksize", []any{id})
-	if err != nil {
-		return "", err
-	}
-	var result string
-	if err := json.Unmarshal(raw, &result); err != nil {
-		return "", err
-	}
-	return result, nil
-}
-
-func PoolDatasetRecordsizeChoices(ctx context.Context, c client.Caller) (json.RawMessage, error) {
-	raw, err := c.Call(ctx, "pool.dataset.recordsize_choices", []any{})
-	if err != nil {
-		return nil, err
-	}
-	var result json.RawMessage
-	if err := json.Unmarshal(raw, &result); err != nil {
-		return nil, err
-	}
-	return result, nil
-}
-
-func PoolDatasetRename(ctx context.Context, c client.Caller, id string, args PoolDatasetRenameArgs) error {
-	_, err := c.Call(ctx, "pool.dataset.rename", []any{id, args})
-	return err
-}
-
-func PoolDatasetSetQuota(ctx context.Context, c client.Caller, id string) error {
-	_, err := c.Call(ctx, "pool.dataset.set_quota", []any{id})
-	return err
-}
-
-func PoolDatasetSnapshotCount(ctx context.Context, c client.Caller, id string) (int64, error) {
-	raw, err := c.Call(ctx, "pool.dataset.snapshot_count", []any{id})
-	if err != nil {
-		return 0, err
-	}
-	var result int64
-	if err := json.Unmarshal(raw, &result); err != nil {
-		return 0, err
-	}
-	return result, nil
-}
-
-func PoolDatasetUnlock(ctx context.Context, c client.Caller, id string) (*PoolDatasetUnlockResult, error) {
-	raw, err := c.Call(ctx, "pool.dataset.unlock", []any{id})
-	if err != nil {
-		return nil, err
-	}
-	var result PoolDatasetUnlockResult
 	if err := json.Unmarshal(raw, &result); err != nil {
 		return nil, err
 	}

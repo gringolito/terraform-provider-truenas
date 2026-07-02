@@ -17,6 +17,7 @@ codegen:
 	go run ./cmd/codegen \
 		--snapshot api/registry.json \
 		--namespaces user,group,pool.dataset,sharing.nfs,sharing.smb,pool \
+		--branch-select pool.dataset.create:type=FILESYSTEM \
 		--out internal/truenas/
 
 refresh-snapshot:

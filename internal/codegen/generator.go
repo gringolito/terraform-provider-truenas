@@ -43,9 +43,17 @@ type Schema struct {
 	OneOf        []Schema          `json:"oneOf"`
 	AllOf        []Schema          `json:"allOf"`
 	Enum         []json.RawMessage `json:"enum"`
+	Const        json.RawMessage   `json:"const"`
 	Required     []string          `json:"required"`   // standard JSON-Schema required list on objects
 	RequiredProp *bool             `json:"_required_"` // per-property boolean (TrueNAS extension)
 	AttrsOrder   []string          `json:"_attrs_order_"`
+}
+
+// BranchSelector picks one branch of a discriminated-union accepts entry (an
+// anyOf of objects that share a const-valued discriminator field) by value.
+type BranchSelector struct {
+	Field string
+	Value string
 }
 
 // ParseRegistry parses a registry JSON snapshot.
@@ -74,9 +82,11 @@ func FilterByNamespaces(reg Registry, namespaces []string) Registry {
 }
 
 // Generate writes one typed Go source file per namespace to outDir.
-func Generate(reg Registry, namespaces []string, outDir string) error {
+// branchSelectors maps a fully-qualified method name (e.g. "pool.dataset.create")
+// to the discriminator branch to select from a discriminated-union accepts entry.
+func Generate(reg Registry, namespaces []string, outDir string, branchSelectors map[string]BranchSelector) error {
 	for _, ns := range namespaces {
-		src, err := GenerateNamespace(reg, ns)
+		src, err := GenerateNamespace(reg, ns, branchSelectors)
 		if err != nil {
 			return fmt.Errorf("namespace %s: %w", ns, err)
 		}
@@ -89,7 +99,7 @@ func Generate(reg Registry, namespaces []string, outDir string) error {
 }
 
 // GenerateNamespace generates the Go source for a single namespace.
-func GenerateNamespace(reg Registry, ns string) ([]byte, error) {
+func GenerateNamespace(reg Registry, ns string, branchSelectors map[string]BranchSelector) ([]byte, error) {
 	var methods []string
 	for method := range reg {
 		if methodNamespace(method) == ns {
@@ -100,7 +110,7 @@ func GenerateNamespace(reg Registry, ns string) ([]byte, error) {
 		return nil, fmt.Errorf("no methods found for namespace %q", ns)
 	}
 	sort.Strings(methods)
-	return generateFile(ns, methods, reg)
+	return generateFile(ns, methods, reg, branchSelectors)
 }
 
 // ---- naming helpers --------------------------------------------------------
@@ -189,8 +199,94 @@ func isObjectLike(s Schema) bool {
 	return s.Type == "object" || len(s.AllOf) > 0
 }
 
-func isInteger(s Schema) bool {
-	return s.Type == "integer"
+// isIDArg reports whether a schema node can serve as an id-like leading
+// positional accepts argument. Most namespaces key on an integer internal id
+// (user, group); pool.dataset keys on its string ZFS path instead.
+func isIDArg(s Schema) bool {
+	return s.Type == "integer" || s.Type == "string"
+}
+
+// zfsPropertyFields is the fixed property set of the recurring
+// {value, rawvalue, parsed, source, source_info} shape TrueNAS uses for every
+// ZFS dataset property returned by pool.dataset.get_instance.
+var zfsPropertyFields = map[string]bool{
+	"value":       true,
+	"rawvalue":    true,
+	"parsed":      true,
+	"source":      true,
+	"source_info": true,
+}
+
+// isZFSPropertyShape reports whether s is exactly the ZFS property object
+// shape, regardless of field ordering.
+func isZFSPropertyShape(s Schema) bool {
+	if s.Type != "object" || len(s.Properties) != len(zfsPropertyFields) {
+		return false
+	}
+	for name := range s.Properties {
+		if !zfsPropertyFields[name] {
+			return false
+		}
+	}
+	return true
+}
+
+// structUsesZFSProperty reports whether any field of s is ZFS-property-shaped.
+func structUsesZFSProperty(s Schema) bool {
+	s = resolveAllOf(s)
+	for _, field := range s.Properties {
+		if isZFSPropertyShape(field) {
+			return true
+		}
+	}
+	return false
+}
+
+// discriminatorField returns the property name that carries a distinct const
+// value on every branch of s.AnyOf, or "" if s is not a discriminated union
+// of object branches.
+func discriminatorField(s Schema) string {
+	if len(s.AnyOf) < 2 {
+		return ""
+	}
+	for _, branch := range s.AnyOf {
+		if !isObjectLike(branch) {
+			return ""
+		}
+	}
+	counts := make(map[string]int)
+	for _, branch := range s.AnyOf {
+		for name, prop := range branch.Properties {
+			if len(prop.Const) > 0 {
+				counts[name]++
+			}
+		}
+	}
+	for name, n := range counts {
+		if n == len(s.AnyOf) {
+			return name
+		}
+	}
+	return ""
+}
+
+// selectBranch returns the branch of the discriminated union s.AnyOf whose
+// field property's const equals value.
+func selectBranch(s Schema, field, value string) (Schema, error) {
+	for _, branch := range s.AnyOf {
+		prop, ok := branch.Properties[field]
+		if !ok || len(prop.Const) == 0 {
+			continue
+		}
+		var constVal string
+		if err := json.Unmarshal(prop.Const, &constVal); err != nil {
+			continue
+		}
+		if constVal == value {
+			return branch, nil
+		}
+	}
+	return Schema{}, fmt.Errorf("no anyOf branch has %s=%q", field, value)
 }
 
 // isRequiredArg reports whether an accepts-list entry is required
@@ -232,6 +328,9 @@ func schemaToGoType(s Schema) string {
 		}
 		return "[]json.RawMessage"
 	case "object":
+		if isZFSPropertyShape(s) {
+			return "ZFSProperty"
+		}
 		return "map[string]json.RawMessage"
 	default:
 		return "json.RawMessage"
@@ -309,6 +408,7 @@ type methodSig struct {
 	method           string
 	funcName         string
 	hasIDArg         bool
+	idType           string // Go type of the id positional arg; only meaningful when hasIDArg
 	hasQueryFilters  bool
 	isUpdateArgs     bool
 	argsStructName   string
@@ -318,7 +418,7 @@ type methodSig struct {
 	returnType       string // Go type expression; "" means the function returns only error
 }
 
-func classifyMethod(method string, def MethodDef, prefix string) methodSig {
+func classifyMethod(method string, def MethodDef, prefix string, branchSelectors map[string]BranchSelector) (methodSig, error) {
 	verb := methodVerb(method)
 	funcName := prefix + snakeToPascal(verb)
 	sig := methodSig{method: method, funcName: funcName}
@@ -327,9 +427,12 @@ func classifyMethod(method string, def MethodDef, prefix string) methodSig {
 	//
 	// Pattern 1: no arguments.
 	// Pattern 2: single required object  →  (ctx, c, args ArgsType)
-	// Pattern 3: integer first, required object second  →  (ctx, c, id int64, args ArgsType)
-	//            (the [id, patch] update pattern)
-	// Pattern 4: integer first, optional or absent second  →  (ctx, c, id int64)
+	// Pattern 2b: single discriminated-union (anyOf of const-tagged objects)  →
+	//             (ctx, c, args ArgsType), branch picked by configured BranchSelector
+	//             (e.g. pool.dataset.create's FILESYSTEM/VOLUME split)
+	// Pattern 3: id-like (integer or string) first, required object second  →
+	//            (ctx, c, id IDType, args ArgsType) (the [id, patch] update pattern)
+	// Pattern 4: id-like first, optional or absent second  →  (ctx, c, id IDType)
 	//            (get_instance, delete — optional trailing options are dropped)
 	// Pattern 5: query verb with optional array first arg  →  (ctx, c, filters ...QueryFilter)
 	switch {
@@ -339,6 +442,19 @@ func classifyMethod(method string, def MethodDef, prefix string) methodSig {
 	case verb == "query" && len(def.Accepts) >= 1 && def.Accepts[0].Type == "array":
 		sig.hasQueryFilters = true
 
+	case len(def.Accepts) == 1 && discriminatorField(def.Accepts[0]) != "":
+		field := discriminatorField(def.Accepts[0])
+		sel, ok := branchSelectors[method]
+		if !ok {
+			return sig, fmt.Errorf("%s: accepts a discriminated union on %q but no branch selector is configured", method, field)
+		}
+		branch, err := selectBranch(def.Accepts[0], sel.Field, sel.Value)
+		if err != nil {
+			return sig, fmt.Errorf("%s: %w", method, err)
+		}
+		sig.argsSchema = &branch
+		sig.argsStructName = funcName + "Args"
+
 	case len(def.Accepts) == 1 && isObjectLike(def.Accepts[0]):
 		a := def.Accepts[0]
 		sig.argsSchema = &a
@@ -346,8 +462,9 @@ func classifyMethod(method string, def MethodDef, prefix string) methodSig {
 		// function name itself (e.g. title "user_create" → "UserCreate" == funcName).
 		sig.argsStructName = funcName + "Args"
 
-	case len(def.Accepts) >= 2 && isInteger(def.Accepts[0]):
+	case len(def.Accepts) >= 2 && isIDArg(def.Accepts[0]):
 		sig.hasIDArg = true
+		sig.idType = schemaToGoType(def.Accepts[0])
 		second := def.Accepts[1]
 		if isObjectLike(second) && isRequiredArg(second) {
 			// Required object: the [id, patch] pattern.
@@ -357,13 +474,14 @@ func classifyMethod(method string, def MethodDef, prefix string) methodSig {
 		}
 		// Optional second arg (query options etc.) is dropped from the signature.
 
-	case len(def.Accepts) >= 1 && isInteger(def.Accepts[0]):
+	case len(def.Accepts) >= 1 && isIDArg(def.Accepts[0]):
 		sig.hasIDArg = true
+		sig.idType = schemaToGoType(def.Accepts[0])
 	}
 
 	// Classify returns.
 	if len(def.Returns) == 0 {
-		return sig
+		return sig, nil
 	}
 	ret := def.Returns[0]
 	switch {
@@ -410,33 +528,44 @@ func classifyMethod(method string, def MethodDef, prefix string) methodSig {
 		sig.returnType = "" // discard
 	}
 
-	return sig
+	return sig, nil
 }
 
 // ---- code generation -------------------------------------------------------
 
-func generateFile(ns string, methods []string, reg Registry) ([]byte, error) {
+func generateFile(ns string, methods []string, reg Registry, branchSelectors map[string]BranchSelector) ([]byte, error) {
 	prefix := namespaceToPrefix(ns)
 
 	var sigs []methodSig
 	for _, m := range methods {
-		sigs = append(sigs, classifyMethod(m, reg[m], prefix))
+		sig, err := classifyMethod(m, reg[m], prefix, branchSelectors)
+		if err != nil {
+			return nil, err
+		}
+		sigs = append(sigs, sig)
 	}
 
 	needsJSON := false
+	needsZFSProperty := false
 	for _, s := range sigs {
 		if s.returnType != "" || s.argsStructName != "" {
 			needsJSON = true
-			break
 		}
 		if s.argsSchema != nil && structNeedsJSON(*s.argsSchema) {
 			needsJSON = true
-			break
 		}
 		if s.returnSchema != nil && structNeedsJSON(*s.returnSchema) {
 			needsJSON = true
-			break
 		}
+		if s.returnSchema != nil && structUsesZFSProperty(*s.returnSchema) {
+			needsZFSProperty = true
+		}
+		if s.argsSchema != nil && structUsesZFSProperty(*s.argsSchema) {
+			needsZFSProperty = true
+		}
+	}
+	if needsZFSProperty {
+		needsJSON = true
 	}
 
 	var buf bytes.Buffer
@@ -453,6 +582,10 @@ func generateFile(ns string, methods []string, reg Registry) ([]byte, error) {
 
 	// Emit structs, deduped by name.
 	emitted := make(map[string]bool)
+
+	if needsZFSProperty {
+		emitZFSPropertyStruct(&buf)
+	}
 
 	// Return structs first (shared across methods).
 	for _, s := range sigs {
@@ -530,6 +663,20 @@ func emitStruct(buf *bytes.Buffer, name string, s Schema, updateArgs, isArgs boo
 	buf.WriteString("}\n\n")
 }
 
+// emitZFSPropertyStruct writes the shared ZFSProperty struct definition once
+// per file, used for every field matching the recurring ZFS property shape.
+func emitZFSPropertyStruct(buf *bytes.Buffer) {
+	buf.WriteString("// ZFSProperty is the recurring {value, rawvalue, parsed, source, source_info}\n")
+	buf.WriteString("// shape TrueNAS uses for ZFS dataset properties.\n")
+	buf.WriteString("type ZFSProperty struct {\n")
+	buf.WriteString("\tValue      *string         `json:\"value,omitempty\"`\n")
+	buf.WriteString("\tRawValue   *string         `json:\"rawvalue,omitempty\"`\n")
+	buf.WriteString("\tParsed     json.RawMessage `json:\"parsed,omitempty\"`\n")
+	buf.WriteString("\tSource     *string         `json:\"source,omitempty\"`\n")
+	buf.WriteString("\tSourceInfo json.RawMessage `json:\"source_info,omitempty\"`\n")
+	buf.WriteString("}\n\n")
+}
+
 // zeroValue returns the Go zero-value literal for the given type expression.
 // Pointer, slice, and interface types use nil; value types use their typed zero.
 func zeroValue(t string) string {
@@ -550,7 +697,7 @@ func zeroValue(t string) string {
 func emitFunc(buf *bytes.Buffer, s methodSig) {
 	buf.WriteString("func " + s.funcName + "(ctx context.Context, c client.Caller")
 	if s.hasIDArg {
-		buf.WriteString(", id int64")
+		fmt.Fprintf(buf, ", id %s", s.idType)
 	}
 	if s.hasQueryFilters {
 		buf.WriteString(", filters ...QueryFilter")

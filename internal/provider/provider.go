@@ -142,6 +142,7 @@ func (p *TrueNASProvider) Configure(ctx context.Context, req provider.ConfigureR
 
 func (p *TrueNASProvider) Resources(ctx context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
+		NewDatasetResource,
 		NewGroupResource,
 		NewUserResource,
 		NewUserGroupMembershipResource,
@@ -150,6 +151,7 @@ func (p *TrueNASProvider) Resources(ctx context.Context) []func() resource.Resou
 
 func (p *TrueNASProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
+		NewDatasetDataSource,
 		NewGroupDataSource,
 		NewPoolDataSource,
 		NewUserDataSource,
