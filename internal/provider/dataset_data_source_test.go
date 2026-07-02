@@ -27,6 +27,8 @@ func TestAccDatasetDataSource_byPath(t *testing.T) {
 					resource.TestCheckResourceAttrSet("data.truenas_dataset.test", "name"),
 					resource.TestCheckResourceAttr("data.truenas_dataset.test", "comments", "tf-acc datasource test"),
 					resource.TestCheckResourceAttr("data.truenas_dataset.test", "compression", "LZ4"),
+					resource.TestCheckResourceAttr("data.truenas_dataset.test", "quota", "1073741824"),
+					resource.TestMatchResourceAttr("data.truenas_dataset.test", "quota_string", regexp.MustCompile(`^\d+(\.\d+)?\s*GiB$`)),
 				),
 			},
 		},
@@ -58,6 +60,7 @@ resource "truenas_dataset" "test" {
   path        = %q
   comments    = "tf-acc datasource test"
   compression = "LZ4"
+  quota       = 1073741824
 }
 
 data "truenas_dataset" "test" {

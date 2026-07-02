@@ -33,14 +33,18 @@ data "truenas_dataset" "example" {
 - `copies` (Number) Number of copies of data blocks maintained for redundancy.
 - `deduplication` (String) Deduplication setting for the dataset.
 - `exec` (String) Whether files in this dataset can be executed.
-- `id` (String) Mirrors `path`; the dataset's sole identity.
+- `id` (String) The dataset's identifier.
 - `name` (String) Last segment of `path`.
 - `pool` (String) Pool name — the first segment of `path`.
 - `quota` (Number) Maximum disk space this dataset and its children can consume, in bytes.
+- `quota_string` (String) Human-readable rendering of `quota` (e.g. `20 GiB`), as reported by TrueNAS.
 - `readonly` (String) Whether the dataset is read-only.
 - `record_size` (String) Suggested block size for files in the dataset.
 - `refquota` (Number) Maximum disk space this dataset itself can consume, in bytes.
+- `refquota_string` (String) Human-readable rendering of `refquota` (e.g. `20 GiB`), as reported by TrueNAS.
 - `refreservation` (Number) Minimum disk space guaranteed to this dataset itself, in bytes.
+- `refreservation_string` (String) Human-readable rendering of `refreservation` (e.g. `20 GiB`), as reported by TrueNAS.
 - `reservation` (Number) Minimum disk space guaranteed to this dataset and its children, in bytes.
+- `reservation_string` (String) Human-readable rendering of `reservation` (e.g. `20 GiB`), as reported by TrueNAS.
 - `snap_dir` (String) Controls visibility of the `.zfs/snapshot` directory.
 - `sync` (String) Synchronous write behavior.

@@ -3,12 +3,12 @@
 page_title: "truenas_dataset Resource - truenas"
 subcategory: ""
 description: |-
-  Manages a FILESYSTEM-type ZFS dataset on TrueNAS SCALE. VOLUME-type datasets (zvols) are out of scope; encountering one is a clear, actionable error.
+  Manages a FILESYSTEM-type ZFS dataset on TrueNAS SCALE.
 ---
 
 # truenas_dataset (Resource)
 
-Manages a FILESYSTEM-type ZFS dataset on TrueNAS SCALE. VOLUME-type datasets (zvols) are out of scope; encountering one is a clear, actionable error.
+Manages a FILESYSTEM-type ZFS dataset on TrueNAS SCALE.
 
 ## Example Usage
 
@@ -53,7 +53,7 @@ resource "truenas_dataset" "example" {
 
 ### Read-Only
 
-- `id` (String) Mirrors `path`; the dataset's sole identity.
+- `id` (String) The dataset's identifier.
 - `name` (String) Last segment of `path`. Derived, read-only.
 - `pool` (String) Pool name — the first segment of `path`. Derived, read-only.
 

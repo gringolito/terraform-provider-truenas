@@ -57,11 +57,11 @@ func (r *DatasetResource) Metadata(_ context.Context, req resource.MetadataReque
 
 func (r *DatasetResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Manages a FILESYSTEM-type ZFS dataset on TrueNAS SCALE. VOLUME-type datasets (zvols) are out of scope; encountering one is a clear, actionable error.",
+		MarkdownDescription: "Manages a FILESYSTEM-type ZFS dataset on TrueNAS SCALE.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Computed:            true,
-				MarkdownDescription: "Mirrors `path`; the dataset's sole identity.",
+				MarkdownDescription: "The dataset's identifier.",
 				PlanModifiers:       []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
 			},
 			"path": schema.StringAttribute{

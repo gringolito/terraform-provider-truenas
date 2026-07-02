@@ -41,6 +41,11 @@ type DatasetDataSourceModel struct {
 	Reservation    types.Int64  `tfsdk:"reservation"`
 	Refreservation types.Int64  `tfsdk:"refreservation"`
 	Copies         types.Int64  `tfsdk:"copies"`
+
+	QuotaString          types.String `tfsdk:"quota_string"`
+	RefquotaString       types.String `tfsdk:"refquota_string"`
+	ReservationString    types.String `tfsdk:"reservation_string"`
+	RefreservationString types.String `tfsdk:"refreservation_string"`
 }
 
 func (d *DatasetDataSource) Metadata(_ context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
@@ -53,7 +58,7 @@ func (d *DatasetDataSource) Schema(_ context.Context, _ datasource.SchemaRequest
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Computed:            true,
-				MarkdownDescription: "Mirrors `path`; the dataset's sole identity.",
+				MarkdownDescription: "The dataset's identifier.",
 			},
 			"path": schema.StringAttribute{
 				Required:            true,
@@ -122,6 +127,22 @@ func (d *DatasetDataSource) Schema(_ context.Context, _ datasource.SchemaRequest
 			"copies": schema.Int64Attribute{
 				Computed:            true,
 				MarkdownDescription: "Number of copies of data blocks maintained for redundancy.",
+			},
+			"quota_string": schema.StringAttribute{
+				Computed:            true,
+				MarkdownDescription: "Human-readable rendering of `quota` (e.g. `20 GiB`), as reported by TrueNAS.",
+			},
+			"refquota_string": schema.StringAttribute{
+				Computed:            true,
+				MarkdownDescription: "Human-readable rendering of `refquota` (e.g. `20 GiB`), as reported by TrueNAS.",
+			},
+			"reservation_string": schema.StringAttribute{
+				Computed:            true,
+				MarkdownDescription: "Human-readable rendering of `reservation` (e.g. `20 GiB`), as reported by TrueNAS.",
+			},
+			"refreservation_string": schema.StringAttribute{
+				Computed:            true,
+				MarkdownDescription: "Human-readable rendering of `refreservation` (e.g. `20 GiB`), as reported by TrueNAS.",
 			},
 		},
 	}
@@ -195,6 +216,11 @@ func datasetToDataSourceModel(ds *truenas.PoolDataset, m *DatasetDataSourceModel
 	m.Reservation = int64PtrToValue(props.Reservation)
 	m.Refreservation = int64PtrToValue(props.Refreservation)
 	m.Copies = int64PtrToValue(props.Copies)
+
+	m.QuotaString = stringPtrToValue(props.QuotaString)
+	m.RefquotaString = stringPtrToValue(props.RefquotaString)
+	m.ReservationString = stringPtrToValue(props.ReservationString)
+	m.RefreservationString = stringPtrToValue(props.RefreservationString)
 
 	return nil
 }

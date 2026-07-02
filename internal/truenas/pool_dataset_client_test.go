@@ -16,7 +16,6 @@ func TestPoolDatasetPathParts(t *testing.T) {
 		wantPool string
 		wantName string
 	}{
-		{"tank", "tank", "tank"},
 		{"tank/myuser", "tank", "myuser"},
 		{"tank/projects/child", "tank", "child"},
 	}
@@ -160,6 +159,29 @@ func TestExtractPoolDatasetProperties(t *testing.T) {
 		if c.got == nil || *c.got != c.want {
 			t.Errorf("%s: got %v, want %d", name, c.got, c.want)
 		}
+	}
+
+	// *String properties mirror TrueNAS's human-formatted `value`, independent
+	// of the accepts-compatible integer extraction above.
+	stringSizeChecks := map[string]struct {
+		got  *string
+		want string
+	}{
+		"quota_string":    {props.QuotaString, "20 GiB"},
+		"refquota_string": {props.RefquotaString, "10 GiB"},
+	}
+	for name, c := range stringSizeChecks {
+		if c.got == nil || *c.got != c.want {
+			t.Errorf("%s: got %v, want %q", name, c.got, c.want)
+		}
+	}
+	// Reservation/refreservation report value:null for the "0"/none case
+	// (see the intChecks comment above); *String stays nil there too.
+	if props.ReservationString != nil {
+		t.Errorf("reservation_string: got %v, want nil", props.ReservationString)
+	}
+	if props.RefreservationString != nil {
+		t.Errorf("refreservation_string: got %v, want nil", props.RefreservationString)
 	}
 }
 

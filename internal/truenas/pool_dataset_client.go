@@ -28,7 +28,7 @@ func PoolDatasetPathParts(path string) (pool, name string) {
 // (see CONTEXT.md "Dataset type"); VOLUME datasets are out of v0.1 scope.
 func RequireFilesystemDataset(ds *PoolDataset) error {
 	if ds.Type != "FILESYSTEM" {
-		return fmt.Errorf("dataset %q is a %s dataset; truenas_dataset only manages FILESYSTEM-type datasets (VOLUME/zvol is out of scope)", ds.Id, ds.Type)
+		return fmt.Errorf("dataset %q is a %s dataset; truenas_dataset only manages FILESYSTEM-type datasets", ds.Id, ds.Type)
 	}
 	return nil
 }
@@ -66,6 +66,15 @@ type PoolDatasetProperties struct {
 	Reservation    *int64
 	Refreservation *int64
 	Copies         *int64
+
+	// *String mirror TrueNAS's own human-formatted rendering (e.g. "20 GiB")
+	// of the corresponding size property, straight from ZFSProperty.Value.
+	// Read-only convenience fields — pool.dataset.create/.update do not
+	// accept this shape as input (see docs/adr/0007).
+	QuotaString          *string
+	RefquotaString       *string
+	ReservationString    *string
+	RefreservationString *string
 }
 
 // ExtractPoolDatasetProperties extracts the mutable dataset properties from a
@@ -102,6 +111,11 @@ func ExtractPoolDatasetProperties(ds *PoolDataset) (*PoolDatasetProperties, erro
 		Deduplication: ds.Deduplication.Value,
 		SnapDir:       ds.Snapdir.Value,
 		RecordSize:    ds.Recordsize.Value,
+
+		QuotaString:          ds.Quota.Value,
+		RefquotaString:       ds.Refquota.Value,
+		ReservationString:    ds.Reservation.Value,
+		RefreservationString: ds.Refreservation.Value,
 	}
 
 	var err error
