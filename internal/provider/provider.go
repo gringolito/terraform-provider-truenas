@@ -6,6 +6,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 
 	goversion "github.com/hashicorp/go-version"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
@@ -18,13 +19,18 @@ import (
 	"github.com/gringolito/terraform-provider-truenas/internal/client"
 )
 
+// DialFunc opens an authenticated connection to TrueNAS and returns a Caller.
+type DialFunc func(host, apiKey, username, password string, insecureSkipVerify bool) (client.Caller, error)
+
 var _ provider.Provider = &TrueNASProvider{}
 
 type TrueNASProvider struct {
 	// version is set to the provider version on release, "dev" when the
 	// provider is built and ran locally, and "test" when running acceptance
 	// testing.
-	version string
+	version     string
+	dial        DialFunc
+	versionOnce sync.Once
 }
 
 type TrueNASProviderModel struct {
@@ -124,7 +130,7 @@ func (p *TrueNASProvider) Configure(ctx context.Context, req provider.ConfigureR
 		return
 	}
 
-	caller, err := client.NewWebSocketClient(host, apiKey, username, password, insecureSkipVerify)
+	caller, err := p.dial(host, apiKey, username, password, insecureSkipVerify)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Failed to connect to TrueNAS",
@@ -133,11 +139,10 @@ func (p *TrueNASProvider) Configure(ctx context.Context, req provider.ConfigureR
 		return
 	}
 
-	checkServerVersion(ctx, caller, resp)
+	p.versionOnce.Do(func() { checkServerVersion(ctx, caller, resp) })
 
-	var c client.Caller = caller
-	resp.ResourceData = c
-	resp.DataSourceData = c
+	resp.ResourceData = caller
+	resp.DataSourceData = caller
 }
 
 func (p *TrueNASProvider) Resources(ctx context.Context) []func() resource.Resource {
@@ -158,12 +163,19 @@ func (p *TrueNASProvider) DataSources(ctx context.Context) []func() datasource.D
 	}
 }
 
-func New(version string) func() provider.Provider {
+// NewWithDialer returns a provider factory using the supplied DialFunc.
+// The injected dial function is called on each Configure invocation when no
+// cached connection exists.
+func NewWithDialer(version string, dial DialFunc) func() provider.Provider {
 	return func() provider.Provider {
-		return &TrueNASProvider{
-			version: version,
-		}
+		return &TrueNASProvider{version: version, dial: dial}
 	}
+}
+
+func New(version string) func() provider.Provider {
+	return NewWithDialer(version, func(host, apiKey, username, password string, insecureSkipVerify bool) (client.Caller, error) {
+		return client.NewWebSocketClient(host, apiKey, username, password, insecureSkipVerify)
+	})
 }
 
 func validateCredentials(apiKey, username, password string) diag.Diagnostics {
