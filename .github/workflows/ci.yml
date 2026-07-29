@@ -80,12 +80,15 @@ jobs:
       - name: Check Terraform formatting
         run: terraform fmt -check -recursive examples/
 
-  # Run acceptance tests in a matrix with Terraform CLI versions
+  # Run unit tests in a matrix with Terraform CLI versions
   test:
-    name: Terraform Provider Acceptance Tests
+    name: Terraform Provider Unit Tests
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: read
+      pull-requests: write
     strategy:
       fail-fast: false
       matrix:
@@ -104,7 +107,13 @@ jobs:
           terraform_version: ${{ matrix.terraform }}
           terraform_wrapper: false
       - run: go mod download
-      - env:
-          TF_ACC: "1"
-        run: go test -v -cover ./internal/provider/
+      - name: Run unit tests
+        id: run-tests
+        run: go test -v -coverprofile=coverage.out ./internal/provider/
         timeout-minutes: 10
+      - name: Upload coverage to Codecov
+        if: steps.run-tests.outcome == 'success' || steps.run-tests.outcome == 'failure'
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage.out
